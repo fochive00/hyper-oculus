@@ -635,16 +635,16 @@ impl App {
                     &[],
                 );
     
-                device.cmd_draw_indexed(
-                    command_buffer,
-                    index_count,
-                    1,
-                    0,
-                    0,
-                    1,
-                );
+                // device.cmd_draw_indexed(
+                //     command_buffer,
+                //     index_count,
+                //     1,
+                //     0,
+                //     0,
+                //     1,
+                // );
                 // Or draw without the index buffer
-                // device.cmd_draw(draw_command_buffer, 3, 1, 0, 0);
+                device.cmd_draw(command_buffer, 5, 1, 0, 0);
                 device.cmd_end_render_pass(command_buffer);
 
                 device

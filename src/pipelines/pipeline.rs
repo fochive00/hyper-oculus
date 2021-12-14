@@ -1,6 +1,6 @@
 
 
-use crate::entities::Vertex3 as Vertex;
+use crate::entities::Vertex4 as Vertex;
 
 use crate::offset_of;
 
@@ -176,7 +176,7 @@ impl Pipeline {
             vk::VertexInputAttributeDescription {
                 location: 1,
                 binding: 0,
-                format: vk::Format::R32G32B32A32_SFLOAT,
+                format: vk::Format::R32G32B32_SFLOAT,
                 offset: offset_of!(Vertex, color) as u32,
             },
         ];
