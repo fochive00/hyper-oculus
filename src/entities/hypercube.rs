@@ -1,4 +1,4 @@
-use super::Vertex4 as Vertex;
+use super::Vertex;
 
 // use std::time::Instant;
 // use chrono::

@@ -2,7 +2,7 @@
 use crate::config::*;
 use crate::pipelines::Pipeline;
 use crate::buffers::Buffer;
-use crate::entities::{Vertex4 as Vertex, Simplex as Entity};
+use crate::entities::{Vertex, Simplex as Entity};
 
 use crate::cameras::Camera as CameraTrait;
 use crate::cameras::{UniformBufferObject, CameraProj4 as Camera};
@@ -52,10 +52,6 @@ pub struct App {
     command_pool: Option<vk::CommandPool>,
     setup_command_buffer: Option<vk::CommandBuffer>,
     draw_command_buffers: Option<Vec<vk::CommandBuffer>>,
-
-    depth_image: Option<vk::Image>,
-    depth_image_view: Option<vk::ImageView>,
-    depth_image_memory: Option<vk::DeviceMemory>,
 
     image_available_semaphores: Option<Vec<vk::Semaphore>>,
     render_finished_semaphores: Option<Vec<vk::Semaphore>>,
@@ -121,7 +117,6 @@ impl App {
         app.create_descriptor_pool();
         app.create_descriptor_sets();
 
-        app.create_depth_buffer();
         app.create_framebuffers();
 
         app.create_draw_command_buffers();
@@ -635,16 +630,15 @@ impl App {
                     &[],
                 );
     
-                // device.cmd_draw_indexed(
-                //     command_buffer,
-                //     index_count,
-                //     1,
-                //     0,
-                //     0,
-                //     1,
-                // );
-                // Or draw without the index buffer
-                device.cmd_draw(command_buffer, 5, 1, 0, 0);
+                device.cmd_draw_indexed(
+                    command_buffer,
+                    index_count,
+                    1,
+                    0,
+                    0,
+                    1,
+                );
+
                 device.cmd_end_render_pass(command_buffer);
 
                 device
@@ -654,136 +648,6 @@ impl App {
         }
 
         self.draw_command_buffers = Some(draw_command_buffers);
-    }
-
-    fn create_depth_buffer(&mut self) {
-        use crate::helpers::find_memorytype_index;
-
-        let device = self.device.as_ref().unwrap();
-        let surface_resolution = self.surface_resolution.as_ref().unwrap();
-        let device_memory_properties = self.device_memory_properties.as_ref().unwrap();
-
-        let depth_image_create_info = vk::ImageCreateInfo::builder()
-            .image_type(vk::ImageType::TYPE_2D)
-            .format(vk::Format::D16_UNORM)
-            .extent(vk::Extent3D {
-                width: surface_resolution.width,
-                height: surface_resolution.height,
-                depth: 1,
-            })
-            .mip_levels(1)
-            .array_layers(1)
-            .samples(vk::SampleCountFlags::TYPE_1)
-            .tiling(vk::ImageTiling::OPTIMAL)
-            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-        let depth_image = unsafe {
-            device.create_image(&depth_image_create_info, None).unwrap()
-        };
-
-        let depth_image_view_info = vk::ImageViewCreateInfo::builder()
-                .subresource_range(
-                    vk::ImageSubresourceRange::builder()
-                        .aspect_mask(vk::ImageAspectFlags::DEPTH)
-                        .level_count(1)
-                        .layer_count(1)
-                        .build(),
-                )
-                .image(depth_image)
-                .format(depth_image_create_info.format)
-                .view_type(vk::ImageViewType::TYPE_2D);
-
-            let depth_image_view = unsafe {
-                device
-                    .create_image_view(&depth_image_view_info, None)
-                    .unwrap()
-            };
-
-        let depth_image_memory_req = unsafe {
-            device.get_image_memory_requirements(depth_image)
-        };
-
-        let depth_image_memory_index = find_memorytype_index(
-            &depth_image_memory_req,
-            device_memory_properties,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-        )
-        .expect("Unable to find suitable memory index for depth image.");
-
-        let depth_image_allocate_info = vk::MemoryAllocateInfo::builder()
-            .allocation_size(depth_image_memory_req.size)
-            .memory_type_index(depth_image_memory_index);
-
-        let depth_image_memory = unsafe {
-            device
-                .allocate_memory(&depth_image_allocate_info, None)
-                .unwrap()
-        };
-
-        unsafe {
-            device
-                .bind_image_memory(depth_image, depth_image_memory, 0)
-                .expect("Unable to bind depth image memory");
-        }
-
-        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(depth_image)
-            .dst_access_mask(
-                vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-            )
-            .new_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-            .old_layout(vk::ImageLayout::UNDEFINED)
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
-                    .layer_count(1)
-                    .level_count(1)
-                    .build(),
-            );
-
-        let command_buffer = self.setup_command_buffer.as_ref()
-            .expect("Could not get `setup_command_buffer`.");
-        let queue = self.present_queue.as_ref()
-            .expect("Could not get `queue`.");
-        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-        
-        unsafe {
-            device.begin_command_buffer(*command_buffer, &command_buffer_begin_info)
-                .expect("Could not begin command buffer.");
-            device.cmd_pipeline_barrier(
-                *command_buffer,
-                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-                vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-                vk::DependencyFlags::empty(),
-                &[],
-                &[],
-                &[layout_transition_barriers.build()],
-            );
-
-            device.end_command_buffer(*command_buffer)
-                .expect("Could not end command buffer.");
-
-            let command_buffers = vec![*command_buffer];
-
-            let submit_info = vk::SubmitInfo::builder()
-                .command_buffers(&command_buffers);
-        
-            device.queue_submit(
-                *queue,
-                &[submit_info.build()],
-                vk::Fence::null(),
-            )
-            .expect("Failed to submit pipeline barrier command.");
-
-            device.device_wait_idle().unwrap();
-        }
-
-        self.depth_image = Some(depth_image);
-        self.depth_image_view = Some(depth_image_view);
-        self.depth_image_memory = Some(depth_image_memory);
     }
 
     fn create_sync_objects(&mut self) {
@@ -946,14 +810,13 @@ impl App {
 
         let device = self.device.as_ref().unwrap();
         let swapchain_image_views = self.swapchain_image_views.as_ref().unwrap();
-        let depth_image_view = self.depth_image_view.as_ref().unwrap();
         let surface_resolution = self.surface_resolution.as_ref().unwrap();
         let render_pass = self.pipeline.as_ref().unwrap().render_pass();
 
         let framebuffers: Vec<vk::Framebuffer> = swapchain_image_views
             .iter()
             .map(|&present_image_view| {
-                let framebuffer_attachments = [present_image_view, *depth_image_view];
+                let framebuffer_attachments = [present_image_view];
                 // let framebuffer_attachments = [present_image_view];
                 let framebuffer_create_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(*render_pass)
@@ -1268,10 +1131,6 @@ impl Drop for App {
             for inflight_fence in self.inflight_fences.take().unwrap() {
                 device.destroy_fence(inflight_fence, None);
             }
-
-            device.free_memory(self.depth_image_memory.take().unwrap(), None);
-            device.destroy_image_view(self.depth_image_view.take().unwrap(), None);
-            device.destroy_image(self.depth_image.take().unwrap(), None);
 
             device.destroy_command_pool(self.command_pool.take().unwrap(), None);
 

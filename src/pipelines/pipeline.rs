@@ -1,6 +1,6 @@
 
 
-use crate::entities::Vertex4 as Vertex;
+use crate::entities::Vertex;
 
 use crate::offset_of;
 
@@ -58,25 +58,12 @@ impl Pipeline {
                 final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
                 ..Default::default()
             },
-            vk::AttachmentDescription {
-                format: vk::Format::D16_UNORM,
-                samples: vk::SampleCountFlags::TYPE_1,
-                load_op: vk::AttachmentLoadOp::CLEAR,
-                initial_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                final_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                ..Default::default()
-            },
         ];
 
         let color_attachment_refs = [vk::AttachmentReference {
             attachment: 0,
             layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         }];
-
-        let depth_attachment_ref = vk::AttachmentReference {
-            attachment: 1,
-            layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        };
 
         let dependencies = [vk::SubpassDependency {
             src_subpass: vk::SUBPASS_EXTERNAL,
@@ -89,7 +76,6 @@ impl Pipeline {
 
         let subpasses = [vk::SubpassDescription::builder()
             .color_attachments(&color_attachment_refs)
-            .depth_stencil_attachment(&depth_attachment_ref)
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .build()];
 
