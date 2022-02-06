@@ -15,7 +15,9 @@ layout(location = 1) in vec3 inColor;
 layout(location = 0) out vec3 fragColor;
 
 vec4 transform(in vec4 position) {
-    return ubo.cam3_trans * ((ubo.cam4_trans * inPosition + ubo.cam4_col) / (ubo.cam4_row * inPosition + ubo.cam4_const));
+    vec4 pos4d = ((ubo.cam4_trans * inPosition + ubo.cam4_col) / (ubo.cam4_row * inPosition + ubo.cam4_const));
+    pos4d = pos4d / pos4d.w;
+    return ubo.cam3_trans * pos4d;
 }
 
 void main() {

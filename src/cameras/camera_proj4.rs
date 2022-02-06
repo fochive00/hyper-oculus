@@ -30,11 +30,11 @@ enum Action {
 #[derive(Copy, Debug, Clone)]
 #[allow(dead_code)]
 pub struct UniformBufferObject {
-    cam4_trans: na::Matrix4<f32>,
-    cam4_col: na::Vector4<f32>,
-    cam4_row: na::Vector4<f32>,
-    cam3_trans: na::Matrix4<f32>,
-    cam4_const: f32,
+    pub cam4_trans: na::Matrix4<f32>,
+    pub cam4_col: na::Vector4<f32>,
+    pub cam4_row: na::Vector4<f32>,
+    pub cam3_trans: na::Matrix4<f32>,
+    pub cam4_const: f32,
 }
 
 pub struct CameraProj4 {
@@ -67,34 +67,39 @@ impl CameraProj4 {
         let camera_proj3 = CameraProj3::new();
 
         let fovy = 3.14 / 4.0;
-        let near = -100.0;
-        let far = 100.0;
+        let near = -10.0;
+        let far = 10.0;
         
         // let position = na::Point4::new(20.0, 20.0, 20.0, 20.0);
-        let position = na::Point4::new(20.0, 0.0, 0.0, 0.0);
+        let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
 
-        let target = na::Point4::origin();
-        let w_axis = na::Vector4::new(1.0, 0.0, 0.0, 0.0);
-        let x_axis = na::Vector4::new(0.0, 1.0, 0.0, 0.0);
-        let y_axis = na::Vector4::new(0.0, 0.0, 1.0, 0.0);
-        let z_axis = na::Vector4::new(0.0, 0.0, 0.0, 1.0);
+        // let target = na::Point4::origin();
+        let x_axis = na::Vector4::new(1.0, 0.0, 0.0, 0.0);
+        let y_axis = na::Vector4::new(0.0, 1.0, 0.0, 0.0);
+        let z_axis = na::Vector4::new(0.0, 0.0, 1.0, 0.0);
+        let w_axis = na::Vector4::new(0.0, 0.0, 0.0, 1.0);
 
-        let w = (target - position).normalize();
-        let z = math::cross(&w, &x_axis, &y_axis);
-        let y = math::cross(&w, &x_axis, &z);
-        let x = math::cross(&w, &y, &z);
-        println!("w: {:?}", w);
-        println!("x: {:?}", x);
-        println!("y: {:?}", y);
-        println!("z: {:?}", z);
+        // let w = (target - position).normalize();
+        // let z = math::cross(&w, &x_axis, &y_axis);
+        // let y = math::cross(&w, &x_axis, &z);
+        // let x = math::cross(&w, &y, &z);
+        let x = x_axis;
+        let y = y_axis;
+        let z = z_axis;
+        let w = -w_axis;
+
+        // println!("w: {:?}", w);
+        // println!("x: {:?}", x);
+        // println!("y: {:?}", y);
+        // println!("z: {:?}", z);
 
         let movement_speed = 10.0;
         let rotation_speed = 0.1;
 
-        let proj = math::ortho_short(near, far, 100.0);
+        let proj = math::ortho_short(near, far, 10.0);
         // let proj = na::Matrix5::identity();
-        let view = math::view(&position, &w, &x, &y, &z);
-        println!("view: {:?}", view);
+        let view = math::view(&position, &x, &y, &z, &w);
+        // println!("view: {:?}", view);
 
         let time = Instant::now();
 
@@ -165,10 +170,10 @@ impl Camera for CameraProj4 {
 
         // println!("{:?}", self.actions);
         let move_direction = 
-            self.actions[&Action::W] * self.w +
             self.actions[&Action::X] * self.x +
             self.actions[&Action::Y] * self.y +
-            self.actions[&Action::Z] * self.z;
+            self.actions[&Action::Z] * self.z +
+            self.actions[&Action::W] * self.w;
 
         // rotation
         // let dx = self.actions[&Action::Yaw] * self.rotation_speed / 180.0 * PI;
@@ -219,14 +224,14 @@ impl Camera for CameraProj4 {
                         };
 
                         match key_code {
-                            VirtualKeyCode::Y => *self.actions.get_mut(&Action::W).unwrap() += factor,
-                            VirtualKeyCode::H => *self.actions.get_mut(&Action::W).unwrap() -= factor,
-                            VirtualKeyCode::U => *self.actions.get_mut(&Action::X).unwrap() += factor,
-                            VirtualKeyCode::J => *self.actions.get_mut(&Action::X).unwrap() -= factor,
-                            VirtualKeyCode::I => *self.actions.get_mut(&Action::Y).unwrap() += factor,
-                            VirtualKeyCode::K => *self.actions.get_mut(&Action::Y).unwrap() -= factor,
-                            VirtualKeyCode::O => *self.actions.get_mut(&Action::Z).unwrap() += factor,
-                            VirtualKeyCode::L => *self.actions.get_mut(&Action::Z).unwrap() -= factor,
+                            VirtualKeyCode::Y => *self.actions.get_mut(&Action::X).unwrap() += factor,
+                            VirtualKeyCode::H => *self.actions.get_mut(&Action::X).unwrap() -= factor,
+                            VirtualKeyCode::U => *self.actions.get_mut(&Action::Y).unwrap() += factor,
+                            VirtualKeyCode::J => *self.actions.get_mut(&Action::Y).unwrap() -= factor,
+                            VirtualKeyCode::I => *self.actions.get_mut(&Action::Z).unwrap() += factor,
+                            VirtualKeyCode::K => *self.actions.get_mut(&Action::Z).unwrap() -= factor,
+                            VirtualKeyCode::O => *self.actions.get_mut(&Action::W).unwrap() += factor,
+                            VirtualKeyCode::L => *self.actions.get_mut(&Action::W).unwrap() -= factor,
                             _ => ()
                         }
                     },

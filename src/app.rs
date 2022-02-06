@@ -7,6 +7,7 @@ use crate::entities::{Vertex, Simplex as Entity};
 use crate::cameras::Camera as CameraTrait;
 use crate::cameras::{UniformBufferObject, CameraProj4 as Camera};
 
+use nalgebra as na;
 use winit::{
     event_loop::EventLoop,
     window::{Window, WindowBuilder},
@@ -925,6 +926,18 @@ impl App {
         let camera = self.camera.as_ref().unwrap();
         let entity = &self.entities.as_ref().unwrap()[0];
         let ubo = camera.data(&entity.transform());
+
+        fn calc_vertices(ubo: &UniformBufferObject, vertices: &Vec<Vertex>) {
+            for v in vertices {
+                let pos = na::Vector4::from(v.pos);
+                let pos4d = (ubo.cam4_trans * pos + ubo.cam4_col) / ((ubo.cam4_row.transpose() * pos)[0] + ubo.cam4_const);
+                let pos4d = pos4d / pos4d[3];
+                let gl_pos = ubo.cam3_trans * pos4d;
+                println!("{:?}", gl_pos / gl_pos[3]);
+            }
+        }
+
+        calc_vertices(&ubo, &self.entities.as_ref().unwrap()[0].vertices());
 
         let mut uniform_buffers = Vec::with_capacity(present_image_size);
         
