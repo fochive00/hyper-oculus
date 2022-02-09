@@ -1,13 +1,19 @@
 [package]
-name = "ash-cube"
+name = "ash-simplex"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ash = "0.33.3"
-ash-window = "0.7.0"
-nalgebra = "0.29.0"
-once_cell = "1.8.0"
-winit = "0.25.0"
+ash = { version="0.35.1", default-features = false, features = ["linked", "debug"] }
+ash-window = "0.9.0"
+egui = "0.16.1"
+egui-winit-ash-integration = { path="../egui-winit-ash-integration" }
+gpu-allocator = "0.16.0"
+memoffset = "0.6.5"
+nalgebra = "0.30.1"
+once_cell = "1.9.0"
+winit = "0.26.1"
+
+[features]

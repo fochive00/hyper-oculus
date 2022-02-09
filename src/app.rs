@@ -13,6 +13,10 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+use gpu_allocator::vulkan::*;
+use gpu_allocator::MemoryLocation;
+
+// use egui_winit_ash_integration::Integration;
 use ash::extensions::{
     ext::DebugUtils,
     khr::{Surface, Swapchain},
@@ -20,6 +24,8 @@ use ash::extensions::{
 
 use ash::vk;
 use std::ffi::CString;
+use std::sync::{Arc, Mutex};
+// use std::mem::ManuallyDrop;
 // use std::ptr;
 // use once_cell::unsync::OnceCell;
 // use std::rc::Rc;
@@ -38,9 +44,9 @@ pub struct App {
     surface_loader: Option<Surface>,
 
     physical_device: Option<vk::PhysicalDevice>,
-    device_memory_properties: Option<vk::PhysicalDeviceMemoryProperties>,
     queue_family_index: Option<u32>,
     device: Option<ash::Device>,
+    allocator: Option<Arc<Mutex<Allocator>>>,
 
     surface_format: Option<vk::SurfaceFormatKHR>,
     surface_resolution: Option<vk::Extent2D>,
@@ -76,6 +82,8 @@ pub struct App {
     uniform_buffers: Option<Vec<Buffer>>,
     vertex_buffers: Option<Vec<Buffer>>,
     index_buffers: Option<Vec<Buffer>>,
+
+    // egui_integration: Option<Integration<Arc<Mutex<Allocator>>>>,
 }
 
 impl App {
@@ -99,6 +107,9 @@ impl App {
         app.create_surface();
         app.pick_physical_device();
         app.create_logical_device();
+
+        app.create_allocator();
+
         app.create_swapchain();
         app.create_image_views();
 
@@ -108,6 +119,8 @@ impl App {
 
         app.create_descriptor_set_layouts();
         app.create_pipeline();
+
+        // app.create_egui_integration();
 
         app.create_entities();
         app.create_camera();
@@ -122,6 +135,7 @@ impl App {
 
         app.create_draw_command_buffers();
         app.create_sync_objects();
+
         app
     }
 
@@ -142,9 +156,7 @@ impl App {
     }
     
     fn init_entry(&mut self) {
-        let entry = unsafe {
-            ash::Entry::new().unwrap()
-        };
+        let entry = ash::Entry::linked();
 
         self.entry = Some(entry);
     }
@@ -289,13 +301,8 @@ impl App {
                 .expect("Couldn't find suitable device.")
         };
 
-        let device_memory_properties = unsafe {
-            instance.get_physical_device_memory_properties(physical_device)
-        };
-
         self.physical_device = Some(physical_device);
         self.queue_family_index = Some(queue_family_index as u32);
-        self.device_memory_properties = Some(device_memory_properties);
     }
 
     fn create_logical_device(&mut self) {
@@ -642,6 +649,27 @@ impl App {
 
                 device.cmd_end_render_pass(command_buffer);
 
+                // self.egui_ui(command_buffer, i);
+                /////////////////////////////////////// egui /////////////////////////////////
+                // let egui_integration = self.egui_integration.as_mut().unwrap();
+                // let window = self.window.as_ref().unwrap();
+
+                // egui_integration.begin_frame();
+                // egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
+                //     ui.heading("Hello");
+                //     ui.label("Hello egui!");
+                //     ui.separator();
+                //     ui.hyperlink("https://github.com/emilk/egui");
+                //     ui.separator();
+                //     ui.label("Rotation");
+                // });
+                // let (_, shapes) = egui_integration.end_frame(&window);
+
+                // let clipped_meshes = egui_integration.context().tessellate(shapes);
+                // egui_integration
+                //     .paint(command_buffer, i, clipped_meshes);
+                /////////////////////////////////////// egui /////////////////////////////////
+
                 device
                     .end_command_buffer(command_buffer)
                     .expect("End commandbuffer");
@@ -850,9 +878,9 @@ impl App {
 
     fn create_vertex_buffers(&mut self) {
         let device = self.device.as_ref().unwrap();
+        let allocator = self.allocator.as_ref().unwrap();
         let queue = self.present_queue.as_ref().unwrap();
         let command_buffer = self.setup_command_buffer.as_ref().unwrap();
-        let device_memory_properties = self.device_memory_properties.as_ref().unwrap();
 
         let entities = self.entities.as_ref().unwrap();
         let entity = &entities[0];
@@ -864,8 +892,8 @@ impl App {
             device.clone(),
             buffer_size,
             vk::BufferUsageFlags::TRANSFER_SRC,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-            device_memory_properties
+            allocator.clone(),
+            MemoryLocation::CpuToGpu
         );
 
         staging_buffer.set_data(&vertices);
@@ -874,8 +902,8 @@ impl App {
             device.clone(),
             buffer_size,
             vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_COHERENT,
-            device_memory_properties
+            allocator.clone(),
+            MemoryLocation::GpuOnly
         );
 
         vertex_buffer.transform_from(&queue, &command_buffer ,&staging_buffer);
@@ -885,9 +913,9 @@ impl App {
 
     fn create_index_buffer(&mut self) {
         let device = self.device.as_ref().unwrap();
+        let allocator = self.allocator.as_ref().unwrap();
         let queue = self.present_queue.as_ref().unwrap();
         let command_buffer = self.setup_command_buffer.as_ref().unwrap();
-        let device_memory_properties = self.device_memory_properties.as_ref().unwrap();
 
         let entities = self.entities.as_ref().unwrap();
         let entity = &entities[0];
@@ -899,8 +927,8 @@ impl App {
             device.clone(),
             buffer_size,
             vk::BufferUsageFlags::TRANSFER_SRC,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-            device_memory_properties
+            allocator.clone(),
+            MemoryLocation::CpuToGpu
         );
 
         staging_buffer.set_data(&indices);
@@ -909,8 +937,8 @@ impl App {
             device.clone(),
             buffer_size,
             vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_COHERENT,
-            device_memory_properties
+            allocator.clone(),
+            MemoryLocation::GpuOnly
         );
 
         vertex_buffer.transform_from(&queue, &command_buffer ,&staging_buffer);
@@ -920,7 +948,7 @@ impl App {
 
     fn create_uniform_buffers(&mut self) {
         let device = self.device.as_ref().unwrap();
-        let device_memory_properties = self.device_memory_properties.as_ref().unwrap();
+        let allocator = self.allocator.as_ref().unwrap();
         let present_image_size = self.swapchain_image_count.unwrap();
 
         let camera = self.camera.as_ref().unwrap();
@@ -948,8 +976,8 @@ impl App {
                 device.clone(),
                 buffer_size,
                 vk::BufferUsageFlags::UNIFORM_BUFFER,
-                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-                device_memory_properties
+                allocator.clone(),
+                MemoryLocation::CpuToGpu
             );
 
             uniform_buffer.set_data(&vec![ubo]);
@@ -959,6 +987,147 @@ impl App {
 
         self.uniform_buffers = Some(uniform_buffers);
     }
+
+    fn create_allocator(&mut self) {
+
+        let instance = self.instance.as_ref().unwrap();
+        let device = self.device.as_ref().unwrap();
+        let physical_device = self.physical_device.as_ref().unwrap();
+
+        let allocator = {
+            Allocator::new(&AllocatorCreateDesc {
+                instance: instance.clone(),
+                device: device.clone(),
+                physical_device: *physical_device,
+                debug_settings: Default::default(),
+                buffer_device_address: false,
+            }).expect("Couldn't create allocator")
+        };
+
+        let allocator = Arc::new(Mutex::new(allocator));
+
+        self.allocator = Some(allocator);
+    }
+
+    // fn create_egui_integration(&mut self) {
+
+    //     let surface_resolution = self.surface_resolution.as_ref().unwrap();
+    //     let window = self.window.as_ref().unwrap();
+    //     let device = self.device.as_ref().unwrap();
+    //     let surface_format = self.surface_format.as_ref().unwrap();
+    //     let swapchain_loader = self.swapchain_loader.as_ref().unwrap();
+    //     let swapchain = self.swapchain.as_ref().unwrap();
+    //     let allocator = self.allocator.as_ref().unwrap();
+
+    //     let egui_integration = Integration::new(
+    //         surface_resolution.width,
+    //         surface_resolution.height,
+    //         window.scale_factor(),
+    //         egui::FontDefinitions::default(),
+    //         egui::Style::default(),
+    //         device.clone(),
+    //         Arc::clone(&allocator),
+    //         swapchain_loader.clone(),
+    //         swapchain.clone(),
+    //         surface_format.clone(),
+    //     );
+
+    //     self.egui_integration = Some(egui_integration);
+    // }
+
+    // fn egui_ui(&mut self, command_buffer: vk::CommandBuffer, image_index: usize) {
+    //     let egui_integration = self.egui_integration.as_mut().unwrap();
+    //     let window = self.window.as_ref().unwrap();
+    //     // match self.theme {
+    //     //     EguiTheme::Dark => self
+    //     //         .egui_integration
+    //     //         .context()
+    //     //         .set_visuals(egui::style::Visuals::dark()),
+    //     //     EguiTheme::Light => self
+    //     //         .egui_integration
+    //     //         .context()
+    //     //         .set_visuals(egui::style::Visuals::light()),
+    //     // }
+
+    //     egui_integration.begin_frame();
+    //     egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
+    //         ui.heading("Hello");
+    //         ui.label("Hello egui!");
+    //         ui.separator();
+    //         // ui.horizontal(|ui| {
+    //         //     ui.label("Theme");
+    //         //     let id = ui.make_persistent_id("theme_combo_box_side");
+    //         //     egui::ComboBox::from_id_source(id)
+    //         //         .selected_text(format!("{:?}", self.theme))
+    //         //         .show_ui(ui, |ui| {
+    //         //             ui.selectable_value(&mut self.theme, EguiTheme::Dark, "Dark");
+    //         //             ui.selectable_value(&mut self.theme, EguiTheme::Light, "Light");
+    //         //         });
+    //         // });
+    //         // ui.separator();
+    //         ui.hyperlink("https://github.com/emilk/egui");
+    //         ui.separator();
+    //         ui.label("Rotation");
+    //         // ui.add(egui::widgets::DragValue::new(&mut self.rotation));
+    //         // ui.add(egui::widgets::Slider::new(
+    //         //     &mut self.rotation,
+    //         //     -180.0..=180.0,
+    //         // ));
+    //         ui.label("Light Position");
+    //         // ui.horizontal(|ui| {
+    //         //     ui.label("x:");
+    //         //     ui.add(egui::widgets::DragValue::new(&mut self.light_position.x));
+    //         //     ui.label("y:");
+    //         //     ui.add(egui::widgets::DragValue::new(&mut self.light_position.y));
+    //         //     ui.label("z:");
+    //         //     ui.add(egui::widgets::DragValue::new(&mut self.light_position.z));
+    //         // });
+    //         ui.separator();
+    //         // ui.text_edit_singleline(&mut self.text);
+    //     });
+    //     // egui::Window::new("My Window")
+    //     //     .resizable(true)
+    //     //     .scroll(true)
+    //     //     .show(&egui_integration.context(), |ui| {
+    //     //         ui.heading("Hello");
+    //     //         ui.label("Hello egui!");
+    //     //         ui.separator();
+    //     //         ui.horizontal(|ui| {
+    //     //             ui.label("Theme");
+    //     //             let id = ui.make_persistent_id("theme_combo_box_window");
+    //     //             egui::ComboBox::from_id_source(id)
+    //     //                 .selected_text(format!("{:?}", self.theme))
+    //     //                 .show_ui(ui, |ui| {
+    //     //                     ui.selectable_value(&mut self.theme, EguiTheme::Dark, "Dark");
+    //     //                     ui.selectable_value(&mut self.theme, EguiTheme::Light, "Light");
+    //     //                 });
+    //     //         });
+    //     //         ui.separator();
+    //     //         ui.hyperlink("https://github.com/emilk/egui");
+    //     //         ui.separator();
+    //     //         ui.label("Rotation");
+    //     //         ui.add(egui::widgets::DragValue::new(&mut self.rotation));
+    //     //         ui.add(egui::widgets::Slider::new(
+    //     //             &mut self.rotation,
+    //     //             -180.0..=180.0,
+    //     //         ));
+    //     //         ui.label("Light Position");
+    //     //         ui.horizontal(|ui| {
+    //     //             ui.label("x:");
+    //     //             ui.add(egui::widgets::DragValue::new(&mut self.light_position.x));
+    //     //             ui.label("y:");
+    //     //             ui.add(egui::widgets::DragValue::new(&mut self.light_position.y));
+    //     //             ui.label("z:");
+    //     //             ui.add(egui::widgets::DragValue::new(&mut self.light_position.z));
+    //     //         });
+    //     //         ui.separator();
+    //     //         ui.text_edit_singleline(&mut self.text);
+    //     //     });
+    //     let (_, shapes) = egui_integration.end_frame(&window);
+    //     let clipped_meshes = egui_integration.context().tessellate(shapes);
+    //     egui_integration
+    //         .paint(command_buffer, image_index, clipped_meshes);
+    // }
 
     fn update_uniform_buffer(&mut self) {
         let camera = self.camera.as_mut().unwrap();
@@ -1029,6 +1198,23 @@ impl App {
         self.create_framebuffers();
         self.create_draw_command_buffers();
 
+        // let egui_integration = self.egui_integration.as_mut().unwrap();
+        // let surface_resolution = self.surface_resolution.as_ref().unwrap();
+        // let swapchain = self.swapchain.as_ref().unwrap();
+        // let surface_format = self.surface_format.as_ref().unwrap();
+
+        // egui_integration.update_swapchain(
+        //     surface_resolution.width,
+        //     surface_resolution.height,
+        //     swapchain.clone(),
+        //     surface_format.clone(),
+        // );
+
+    }
+
+    pub fn egui_integration_handle_event<T>(&mut self, winit_event: &winit::event::Event<T>) {
+        // let egui_integration = self.egui_integration.as_mut().unwrap();
+        // egui_integration.handle_event(winit_event);
     }
 
     pub fn render(&mut self) {
@@ -1125,6 +1311,9 @@ impl Drop for App {
 
         unsafe {
             device.device_wait_idle().unwrap();
+
+            drop(self.allocator.take().unwrap());
+            // drop(self.egui_integration.take().unwrap());
             
             drop(self.index_buffers.take().unwrap());
             drop(self.vertex_buffers.take().unwrap());

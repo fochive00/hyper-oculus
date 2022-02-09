@@ -42,6 +42,7 @@ fn main() {
         *control_flow = ControlFlow::Poll;
 
         application.camera().handle_event(&event);
+        application.egui_integration_handle_event(&event);
 
         match event {
             winit::event::Event::WindowEvent { event, .. } => {

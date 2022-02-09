@@ -2,7 +2,7 @@
 
 use crate::entities::Vertex;
 
-use crate::offset_of;
+use memoffset::*;
 
 use ash::util::*;
 use ash::vk;

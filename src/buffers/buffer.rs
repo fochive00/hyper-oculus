@@ -1,15 +1,19 @@
 
 use ash::util::*;
 use ash::vk;
-use crate::helpers::find_memorytype_index;
+
+use gpu_allocator::vulkan::*;
+use gpu_allocator::MemoryLocation;
 
 use std::mem::align_of;
+use std::sync::{Arc, Mutex};
 
 pub struct Buffer {
     device: Option<ash::Device>,
     buffer_size: Option<u64>,
     buffer: Option<vk::Buffer>,
-    buffer_memory: Option<vk::DeviceMemory>,
+    allocation: Option<Allocation>,
+    allocator: Option<Arc<Mutex<Allocator>>>,
 }
 
 impl Buffer {
@@ -17,8 +21,8 @@ impl Buffer {
         device: ash::Device,
         buffer_size: u64,
         buffer_usage_flags: vk::BufferUsageFlags,
-        memory_property_flags: vk::MemoryPropertyFlags,
-        device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+        allocator: Arc<Mutex<Allocator>>,
+        memory_location: MemoryLocation,
     ) -> Self {
         let buffer_create_info = vk::BufferCreateInfo::builder()
             .size(buffer_size)
@@ -33,27 +37,18 @@ impl Buffer {
             device.get_buffer_memory_requirements(buffer)
         };
 
-        let buffer_memory_index = find_memorytype_index(
-            &buffer_memory_req,
-            &device_memory_properties,
-            memory_property_flags,
-        )
-        .expect("Unable to find suitable memorytype for the index buffer.");
-
-        let allocate_info = vk::MemoryAllocateInfo {
-            allocation_size: buffer_memory_req.size,
-            memory_type_index: buffer_memory_index,
-            ..Default::default()
-        };
-        let buffer_memory = unsafe {
-            device
-                .allocate_memory(&allocate_info, None)
-                .unwrap()
-        };
+        let allocation = allocator
+            .lock().unwrap()
+            .allocate(&AllocationCreateDesc {
+                name: "buffer memory allocation",
+                requirements: buffer_memory_req,
+                location: memory_location,
+                linear: true, // Buffers are always linear
+            }).unwrap();
 
         unsafe {
             device
-                .bind_buffer_memory(buffer, buffer_memory, 0)
+                .bind_buffer_memory(buffer, allocation.memory(), allocation.offset())
                 .unwrap();
         }
 
@@ -61,7 +56,8 @@ impl Buffer {
             device: Some(device),
             buffer_size: Some(buffer_size),
             buffer: Some(buffer),
-            buffer_memory: Some(buffer_memory),
+            allocation: Some(allocation),
+            allocator: Some(allocator),
         }
     }
 
@@ -69,28 +65,18 @@ impl Buffer {
     where
         T: std::marker::Copy
     {
-        let device = self.device.as_ref().unwrap();
-        let buffer_memory = self.buffer_memory.as_ref().unwrap();
-        let buffer_size = self.buffer_size.unwrap();
+        let allocation = self.allocation.as_ref().unwrap();
 
         unsafe {
-            let ptr = device.map_memory(
-                *buffer_memory,
-                0,
-                buffer_size,
-                vk::MemoryMapFlags::empty(),
-            )
-            .unwrap();
+            let ptr = allocation.mapped_ptr().unwrap().as_ptr();
 
             let mut vert_align = Align::new(
                 ptr,
                 align_of::<T>() as u64,
-                buffer_size,
+                allocation.size(),
             );
 
             vert_align.copy_from_slice(data.as_slice());
-
-            device.unmap_memory(*buffer_memory);
         }
     }
 
@@ -103,9 +89,8 @@ impl Buffer {
         
         let dst_buffer = self.buffer.as_ref()
             .expect("Could not get `dst_buffer`.");
-        
-        let buffer_size = self.buffer_size
-            .expect("Could not get `buffer_size`.");
+
+        let buffer_size = self.buffer_size.as_ref().unwrap();
 
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
@@ -113,7 +98,7 @@ impl Buffer {
         let copy_region = vk::BufferCopy::builder()
             .src_offset(0)
             .dst_offset(0)
-            .size(buffer_size);
+            .size(*buffer_size);
 
         unsafe {
             device.begin_command_buffer(*command_buffer, &command_buffer_begin_info)
@@ -147,9 +132,13 @@ impl Buffer {
 impl Drop for Buffer {
     fn drop(&mut self) {
         let device = self.device.as_ref().unwrap();
+        let allocator = self.allocator.take().unwrap();
+        let allocation = self.allocation.take().unwrap();
+
+        allocator.lock().unwrap().free(allocation).unwrap();
 
         unsafe {
-            device.free_memory(self.buffer_memory.unwrap(), None);
+            // device.free_memory(self.buffer_memory.unwrap(), None);
             device.destroy_buffer(self.buffer.unwrap(), None);
         }
         
