@@ -66,6 +66,10 @@ pub struct App {
     images_inflight: Option<Vec<vk::Fence>>,
     current_frame: Option<usize>,
 
+    depth_image: Option<vk::Image>,
+    depth_image_allocation: Option<Allocation>,
+    depth_image_view: Option<vk::ImageView>,
+
     present_queue: Option<vk::Queue>,
     
     framebuffers: Option<Vec<vk::Framebuffer>>,
@@ -116,6 +120,8 @@ impl App {
         app.create_command_pool();
         app.create_setup_command_buffer();
         app.create_graphic_queue();
+
+        app.create_depth_resource();
 
         app.create_descriptor_set_layouts();
         app.create_pipeline();
@@ -487,6 +493,149 @@ impl App {
         self.command_pool = Some(pool);
     }
     
+    fn single_time_command<F: FnOnce(&ash::Device, vk::CommandBuffer)>(&self, f: F) {
+        let device = self.device.as_ref().unwrap();
+        let command_buffer = self.setup_command_buffer.as_ref().unwrap();
+        let queue = self.present_queue.as_ref().unwrap();
+
+        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+        unsafe {
+            device.begin_command_buffer(*command_buffer, &command_buffer_begin_info)
+                .expect("Begin commandbuffer");
+        }
+
+        f(device, *command_buffer);
+
+        unsafe {
+            device.end_command_buffer(*command_buffer)
+                .expect("End commandbuffer");
+        }
+
+        let command_buffers = &[*command_buffer];
+
+        let submit_info = vk::SubmitInfo::builder()
+            .command_buffers(command_buffers);
+
+        unsafe {
+            device
+                .queue_submit(
+                    *queue,
+                    &[submit_info.build()],
+                    vk::Fence::null(),
+                )
+                .expect("Failed to submit draw command.");
+            
+            device.device_wait_idle().unwrap();
+        }
+
+    }
+
+    fn create_depth_resource(&mut self) {
+        
+        // fn find_supported_format(candidates: &Vec<vk::Format>, tilling: vk::ImageTiling, features: vk::FormatFeatureFlags) {
+        //     for format in candidates {
+        //         let props = 
+        //     }
+        // }
+        
+        let device = self.device.as_ref().unwrap();
+        let surface_resolution = self.surface_resolution.as_ref().unwrap();
+        let allocator = self.allocator.as_ref().unwrap();
+
+        let depth_image_create_info = vk::ImageCreateInfo::builder()
+            .image_type(vk::ImageType::TYPE_2D)
+            .format(vk::Format::D32_SFLOAT)
+            .extent(
+                vk::Extent3D {
+                    width: surface_resolution.width,
+                    height: surface_resolution.height,
+                    depth: 1,
+                })
+            .mip_levels(1)
+            .array_layers(1)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        
+        let depth_image = unsafe {
+            device.create_image(&depth_image_create_info, None).unwrap()
+        };
+
+        let depth_image_memory_req = unsafe {
+            device.get_image_memory_requirements(depth_image)
+        };
+
+        let allocation = allocator
+            .lock().unwrap()
+            .allocate(&AllocationCreateDesc {
+                name: "buffer memory allocation",
+                requirements: depth_image_memory_req,
+                location: MemoryLocation::GpuOnly,
+                linear: true, // Buffers are always linear
+            }).unwrap();
+
+        unsafe {
+            device
+                .bind_image_memory(depth_image, allocation.memory(), allocation.offset())
+                .expect("Unable to bind depth image memory");
+        }
+
+        self.single_time_command(|device, command_buffer| {
+            unsafe {
+                let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
+                    .image(depth_image)
+                    .dst_access_mask(
+                        vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                    )
+                    .new_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                    .old_layout(vk::ImageLayout::UNDEFINED)
+                    .subresource_range(
+                        vk::ImageSubresourceRange::builder()
+                            .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                            .layer_count(1)
+                            .level_count(1)
+                            .build(),
+                    );
+
+                device.cmd_pipeline_barrier(
+                    command_buffer,
+                    vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                    vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+                    vk::DependencyFlags::empty(),
+                    &[],
+                    &[],
+                    &[layout_transition_barriers.build()],
+                    );
+            }
+        });
+
+        let depth_image_view_info = vk::ImageViewCreateInfo::builder()
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                    .level_count(1)
+                    .layer_count(1)
+                    .build(),
+            )
+            .image(depth_image)
+            .format(depth_image_create_info.format)
+            .view_type(vk::ImageViewType::TYPE_2D);
+
+        let depth_image_view = unsafe {
+            device
+                .create_image_view(&depth_image_view_info, None)
+                .unwrap()
+        };
+
+        self.depth_image = Some(depth_image);
+        self.depth_image_allocation = Some(allocation);
+        self.depth_image_view = Some(depth_image_view);
+    }
+
     fn create_setup_command_buffer(&mut self) {
         let device = self.device.as_ref().unwrap();
         let command_pool = self.command_pool.as_ref().unwrap();
@@ -525,7 +674,7 @@ impl App {
         let clear_values = [
             vk::ClearValue {
                 color: vk::ClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 0.0],
+                    float32: [0.0, 0.0, 0.0, 1.0],
                 },
             },
             vk::ClearValue {
@@ -839,13 +988,14 @@ impl App {
 
         let device = self.device.as_ref().unwrap();
         let swapchain_image_views = self.swapchain_image_views.as_ref().unwrap();
+        let depth_image_view = self.depth_image_view.as_ref().unwrap();
         let surface_resolution = self.surface_resolution.as_ref().unwrap();
         let render_pass = self.pipeline.as_ref().unwrap().render_pass();
 
         let framebuffers: Vec<vk::Framebuffer> = swapchain_image_views
             .iter()
             .map(|&present_image_view| {
-                let framebuffer_attachments = [present_image_view];
+                let framebuffer_attachments = [present_image_view, *depth_image_view];
                 // let framebuffer_attachments = [present_image_view];
                 let framebuffer_create_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(*render_pass)
@@ -1010,7 +1160,6 @@ impl App {
     }
 
     // fn create_egui_integration(&mut self) {
-
     //     let surface_resolution = self.surface_resolution.as_ref().unwrap();
     //     let window = self.window.as_ref().unwrap();
     //     let device = self.device.as_ref().unwrap();
@@ -1018,7 +1167,6 @@ impl App {
     //     let swapchain_loader = self.swapchain_loader.as_ref().unwrap();
     //     let swapchain = self.swapchain.as_ref().unwrap();
     //     let allocator = self.allocator.as_ref().unwrap();
-
     //     let egui_integration = Integration::new(
     //         surface_resolution.width,
     //         surface_resolution.height,
@@ -1031,10 +1179,8 @@ impl App {
     //         swapchain.clone(),
     //         surface_format.clone(),
     //     );
-
     //     self.egui_integration = Some(egui_integration);
     // }
-
     // fn egui_ui(&mut self, command_buffer: vk::CommandBuffer, image_index: usize) {
     //     let egui_integration = self.egui_integration.as_mut().unwrap();
     //     let window = self.window.as_ref().unwrap();
@@ -1048,7 +1194,6 @@ impl App {
     //     //         .context()
     //     //         .set_visuals(egui::style::Visuals::light()),
     //     // }
-
     //     egui_integration.begin_frame();
     //     egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
     //         ui.heading("Hello");
@@ -1147,9 +1292,15 @@ impl App {
         let device = self.device.as_ref().unwrap();
         let swapchain_loader = self.swapchain_loader.as_ref().unwrap();
         let command_pool = self.command_pool.as_ref().unwrap();
+        let allocator = self.allocator.as_ref().unwrap();
 
+        let depth_image_allocation = self.depth_image_allocation.take().unwrap();
         unsafe {
             device.device_wait_idle().unwrap();
+
+            device.destroy_image(self.depth_image.take().unwrap(), None);
+            device.destroy_image_view(self.depth_image_view.take().unwrap(), None);
+            allocator.lock().unwrap().free(depth_image_allocation).unwrap();
 
             device.free_command_buffers(*command_pool, self.draw_command_buffers.take().unwrap().as_slice());
             
@@ -1194,6 +1345,7 @@ impl App {
         self.create_descriptor_sets();
 
         self.create_pipeline();
+        self.create_depth_resource();
 
         self.create_framebuffers();
         self.create_draw_command_buffers();
@@ -1309,12 +1461,12 @@ impl Drop for App {
         let surface_loader = self.surface_loader.as_ref().unwrap();
         let debug_utils_loader = self.debug_utils_loader.as_ref().unwrap();
 
+        let allocator = self.allocator.take().unwrap();
         unsafe {
             device.device_wait_idle().unwrap();
-
-            drop(self.allocator.take().unwrap());
             // drop(self.egui_integration.take().unwrap());
-            
+            drop(allocator);
+
             drop(self.index_buffers.take().unwrap());
             drop(self.vertex_buffers.take().unwrap());
 

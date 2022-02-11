@@ -58,24 +58,40 @@ impl Pipeline {
                 final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
                 ..Default::default()
             },
+            vk::AttachmentDescription {
+                format: vk::Format::D32_SFLOAT,
+                samples: vk::SampleCountFlags::TYPE_1,
+                load_op: vk::AttachmentLoadOp::CLEAR,
+                store_op: vk::AttachmentStoreOp::DONT_CARE,
+                stencil_load_op: vk::AttachmentLoadOp::DONT_CARE,
+                stencil_store_op: vk::AttachmentStoreOp::DONT_CARE,
+                initial_layout: vk::ImageLayout::UNDEFINED,
+                final_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                ..Default::default()
+            }
         ];
 
         let color_attachment_refs = [vk::AttachmentReference {
             attachment: 0,
-            layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
         }];
+
+        let depth_attachment_refs = vk::AttachmentReference {
+            attachment: 1,
+            layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        };
 
         let dependencies = [vk::SubpassDependency {
             src_subpass: vk::SUBPASS_EXTERNAL,
-            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
             ..Default::default()
         }];
 
         let subpasses = [vk::SubpassDescription::builder()
             .color_attachments(&color_attachment_refs)
+            .depth_stencil_attachment(&depth_attachment_refs)
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .build()];
 
@@ -219,7 +235,7 @@ impl Pipeline {
         let depth_state_info = vk::PipelineDepthStencilStateCreateInfo {
             depth_test_enable: 1,
             depth_write_enable: 1,
-            depth_compare_op: vk::CompareOp::LESS_OR_EQUAL,
+            depth_compare_op: vk::CompareOp::LESS,
             front: noop_stencil_state,
             back: noop_stencil_state,
             max_depth_bounds: 1.0,
