@@ -1,5 +1,5 @@
-mod simplex;
-pub use simplex::Simplex;
+mod entity;
+pub use entity::Entity;
 
 // mod hypercube;
 // pub use hypercube::Hypercube;

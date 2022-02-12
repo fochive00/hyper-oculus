@@ -4,14 +4,51 @@ use super::Vertex;
 // use chrono::
 extern crate nalgebra as na;
 
-pub struct Hypercube {
+pub struct Entity {
     vertices: Vec<Vertex>,
     indices: Vec<u16>,
     transform: na::Matrix5<f32>,
 }
 
-impl Hypercube {
-    pub fn new() -> Self {
+impl Entity {
+    pub fn simplex() -> Self {
+        let vertices = vec![
+            Vertex { pos: [-0.5, -0.5, -0.5, -0.5], color: [1.0, 0.0, 0.0] },
+            Vertex { pos: [ 0.5, -0.5,  0.5, -0.5], color: [0.0, 1.0, 0.0] },
+            Vertex { pos: [-0.5,  0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] },
+            Vertex { pos: [-0.5,  0.5, -0.5,  0.5], color: [1.0, 1.0, 1.0] },
+            Vertex { pos: [ 0.5, -0.5, -0.5,  0.5], color: [1.0, 0.0, 0.0] },
+            // Vertex { pos: [-0.5, -0.5, -0.5, 1.0], color: [1.0, 0.0, 0.0] },
+            // Vertex { pos: [-0.5, -0.5, -0.5, 1.0], color: [0.0, 1.0, 0.0] },
+            // Vertex { pos: [-0.5, -0.5,  0.5, 1.0], color: [0.0, 0.0, 1.0] },
+            // Vertex { pos: [-0.5, -0.5,  0.5, 1.0], color: [1.0, 1.0, 1.0] },
+            // Vertex { pos: [-0.5,  0.5, -0.5, 1.0], color: [1.0, 0.0, 0.0] },
+        ];
+
+        let indices = vec![
+            0, 1, 2,
+            0, 1, 3,
+            0, 2, 3,
+            1, 2, 3,
+            
+            0, 1, 4,
+            0, 2, 4,
+            0, 3, 4,
+            1, 2, 4,
+            1, 3, 4,
+            2, 3, 4,
+        ];
+
+        let transform = na::Matrix5::identity();
+
+        Self {
+            vertices,
+            indices,
+            transform,
+        }
+    }
+
+    pub fn hypercube() -> Self {
         let vertices = vec![
             Vertex { pos: [-0.5, -0.5, -0.5, -0.5], color: [1.0, 0.0, 0.0] },
             Vertex { pos: [-0.5, -0.5, -0.5,  0.5], color: [0.0, 1.0, 0.0] },

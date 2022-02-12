@@ -2,7 +2,7 @@
 use crate::config::*;
 use crate::pipelines::Pipeline;
 use crate::buffers::Buffer;
-use crate::entities::{Vertex, Simplex as Entity};
+use crate::entities::{Vertex, Entity};
 
 use crate::cameras::Camera as CameraTrait;
 use crate::cameras::{UniformBufferObject, CameraProj4 as Camera};
@@ -1015,7 +1015,7 @@ impl App {
     }
 
     fn create_entities(&mut self) {
-        let entities = vec![Entity::new()];
+        let entities = vec![Entity::hypercube()];
 
         self.entities = Some(entities);
     }
