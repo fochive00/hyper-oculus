@@ -16,7 +16,7 @@ use winit::{
 use gpu_allocator::vulkan::*;
 use gpu_allocator::MemoryLocation;
 
-// use egui_winit_ash_integration::Integration;
+use egui_winit_ash_integration::Integration;
 use ash::extensions::{
     ext::DebugUtils,
     khr::{Surface, Swapchain},
@@ -87,7 +87,7 @@ pub struct App {
     vertex_buffers: Option<Vec<Buffer>>,
     index_buffers: Option<Vec<Buffer>>,
 
-    // egui_integration: Option<Integration<Arc<Mutex<Allocator>>>>,
+    egui_integration: Option<Integration<Arc<Mutex<Allocator>>>>,
 }
 
 impl App {
@@ -126,7 +126,7 @@ impl App {
         app.create_descriptor_set_layouts();
         app.create_pipeline();
 
-        // app.create_egui_integration();
+        app.create_egui_integration();
 
         app.create_entities();
         app.create_camera();
@@ -670,161 +670,6 @@ impl App {
                 .expect("Could not allocate command buffers.")
         };
 
-        // record draw commands
-        let clear_values = [
-            vk::ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 1.0],
-                },
-            },
-            vk::ClearValue {
-                depth_stencil: vk::ClearDepthStencilValue {
-                    depth: 1.0,
-                    stencil: 0,
-                },
-            },
-        ];
-
-        let descriptor_sets = self.descriptor_sets.as_ref()
-            .expect("Could not get `descriptor_sets`.");
-        let pipeline = self.pipeline.as_ref()
-            .expect("Could not get `pipeline`.");
-
-        let graphics_pipeline = pipeline.pipeline();
-        let render_pass = pipeline.render_pass();
-        let pipeline_layout = pipeline.pipeline_layout();
-        
-        let framebuffers = self.framebuffers.as_ref()
-            .expect("Could not get `framebuffers`.");
-        let surface_resolution = self.surface_resolution.as_ref()
-            .expect("Could not get `surface_resolution`.");
-
-        let device = self.device.as_ref()
-            .expect("Could not get `device`.");
-
-        let vertex_buffers = self.vertex_buffers.as_ref()
-            .expect("Could not get `vertex_buffers`");
-        let index_buffers = self.index_buffers.as_ref()
-            .expect("Could not get `index_buffers`.");
-        let entities = self.entities.as_ref()
-            .expect("Could not get `entity`.");
-        let index_count = entities[0].indices().len() as u32;
-
-        for i in 0..swapchain_image_count {
-            let command_buffer = draw_command_buffers[i];
-
-            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-                .render_pass(*render_pass)
-                .framebuffer(framebuffers[i])
-                .render_area(vk::Rect2D {
-                    offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: *surface_resolution,
-                })
-                .clear_values(&clear_values);
-
-            // recreate viewports and scissors
-            // TODO remove these code
-            let viewports = [vk::Viewport {
-                x: 0.0,
-                y: 0.0,
-                width: surface_resolution.width as f32,
-                height: surface_resolution.height as f32,
-                min_depth: 0.0,
-                max_depth: 1.0,
-            }];
-    
-            let scissors = [vk::Rect2D {
-                offset: vk::Offset2D { x: 0, y: 0 },
-                extent: *surface_resolution,
-            }];
-
-            unsafe {
-                device
-                    .reset_command_buffer(
-                        command_buffer,
-                        vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-                    )
-                    .expect("Reset command buffer failed.");
-        
-                let command_buffer_begin_info = vk::CommandBufferBeginInfo::default();
-        
-                device
-                    .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-                    .expect("Begin commandbuffer");
-                    
-                device.cmd_begin_render_pass(
-                    command_buffer,
-                    &render_pass_begin_info,
-                    vk::SubpassContents::INLINE,
-                );
-                device.cmd_bind_pipeline(
-                    command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    *graphics_pipeline,
-                );
-    
-                device.cmd_set_viewport(command_buffer, 0, &viewports);
-                device.cmd_set_scissor(command_buffer, 0, &scissors);
-                device.cmd_bind_vertex_buffers(
-                    command_buffer,
-                    0,
-                    &[*vertex_buffers[0].buffer()],
-                    &[0],
-                );
-                device.cmd_bind_index_buffer(
-                    command_buffer,
-                    *index_buffers[0].buffer(),
-                    0,
-                    vk::IndexType::UINT16,
-                );
-    
-                device.cmd_bind_descriptor_sets(
-                    command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    *pipeline_layout,
-                    0,
-                    &[descriptor_sets[i]],
-                    &[],
-                );
-    
-                device.cmd_draw_indexed(
-                    command_buffer,
-                    index_count,
-                    1,
-                    0,
-                    0,
-                    1,
-                );
-
-                device.cmd_end_render_pass(command_buffer);
-
-                // self.egui_ui(command_buffer, i);
-                /////////////////////////////////////// egui /////////////////////////////////
-                // let egui_integration = self.egui_integration.as_mut().unwrap();
-                // let window = self.window.as_ref().unwrap();
-
-                // egui_integration.begin_frame();
-                // egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
-                //     ui.heading("Hello");
-                //     ui.label("Hello egui!");
-                //     ui.separator();
-                //     ui.hyperlink("https://github.com/emilk/egui");
-                //     ui.separator();
-                //     ui.label("Rotation");
-                // });
-                // let (_, shapes) = egui_integration.end_frame(&window);
-
-                // let clipped_meshes = egui_integration.context().tessellate(shapes);
-                // egui_integration
-                //     .paint(command_buffer, i, clipped_meshes);
-                /////////////////////////////////////// egui /////////////////////////////////
-
-                device
-                    .end_command_buffer(command_buffer)
-                    .expect("End commandbuffer");
-            }
-        }
-
         self.draw_command_buffers = Some(draw_command_buffers);
     }
 
@@ -1159,120 +1004,32 @@ impl App {
         self.allocator = Some(allocator);
     }
 
-    // fn create_egui_integration(&mut self) {
-    //     let surface_resolution = self.surface_resolution.as_ref().unwrap();
-    //     let window = self.window.as_ref().unwrap();
-    //     let device = self.device.as_ref().unwrap();
-    //     let surface_format = self.surface_format.as_ref().unwrap();
-    //     let swapchain_loader = self.swapchain_loader.as_ref().unwrap();
-    //     let swapchain = self.swapchain.as_ref().unwrap();
-    //     let allocator = self.allocator.as_ref().unwrap();
-    //     let egui_integration = Integration::new(
-    //         surface_resolution.width,
-    //         surface_resolution.height,
-    //         window.scale_factor(),
-    //         egui::FontDefinitions::default(),
-    //         egui::Style::default(),
-    //         device.clone(),
-    //         Arc::clone(&allocator),
-    //         swapchain_loader.clone(),
-    //         swapchain.clone(),
-    //         surface_format.clone(),
-    //     );
-    //     self.egui_integration = Some(egui_integration);
-    // }
-    // fn egui_ui(&mut self, command_buffer: vk::CommandBuffer, image_index: usize) {
-    //     let egui_integration = self.egui_integration.as_mut().unwrap();
-    //     let window = self.window.as_ref().unwrap();
-    //     // match self.theme {
-    //     //     EguiTheme::Dark => self
-    //     //         .egui_integration
-    //     //         .context()
-    //     //         .set_visuals(egui::style::Visuals::dark()),
-    //     //     EguiTheme::Light => self
-    //     //         .egui_integration
-    //     //         .context()
-    //     //         .set_visuals(egui::style::Visuals::light()),
-    //     // }
-    //     egui_integration.begin_frame();
-    //     egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
-    //         ui.heading("Hello");
-    //         ui.label("Hello egui!");
-    //         ui.separator();
-    //         // ui.horizontal(|ui| {
-    //         //     ui.label("Theme");
-    //         //     let id = ui.make_persistent_id("theme_combo_box_side");
-    //         //     egui::ComboBox::from_id_source(id)
-    //         //         .selected_text(format!("{:?}", self.theme))
-    //         //         .show_ui(ui, |ui| {
-    //         //             ui.selectable_value(&mut self.theme, EguiTheme::Dark, "Dark");
-    //         //             ui.selectable_value(&mut self.theme, EguiTheme::Light, "Light");
-    //         //         });
-    //         // });
-    //         // ui.separator();
-    //         ui.hyperlink("https://github.com/emilk/egui");
-    //         ui.separator();
-    //         ui.label("Rotation");
-    //         // ui.add(egui::widgets::DragValue::new(&mut self.rotation));
-    //         // ui.add(egui::widgets::Slider::new(
-    //         //     &mut self.rotation,
-    //         //     -180.0..=180.0,
-    //         // ));
-    //         ui.label("Light Position");
-    //         // ui.horizontal(|ui| {
-    //         //     ui.label("x:");
-    //         //     ui.add(egui::widgets::DragValue::new(&mut self.light_position.x));
-    //         //     ui.label("y:");
-    //         //     ui.add(egui::widgets::DragValue::new(&mut self.light_position.y));
-    //         //     ui.label("z:");
-    //         //     ui.add(egui::widgets::DragValue::new(&mut self.light_position.z));
-    //         // });
-    //         ui.separator();
-    //         // ui.text_edit_singleline(&mut self.text);
-    //     });
-    //     // egui::Window::new("My Window")
-    //     //     .resizable(true)
-    //     //     .scroll(true)
-    //     //     .show(&egui_integration.context(), |ui| {
-    //     //         ui.heading("Hello");
-    //     //         ui.label("Hello egui!");
-    //     //         ui.separator();
-    //     //         ui.horizontal(|ui| {
-    //     //             ui.label("Theme");
-    //     //             let id = ui.make_persistent_id("theme_combo_box_window");
-    //     //             egui::ComboBox::from_id_source(id)
-    //     //                 .selected_text(format!("{:?}", self.theme))
-    //     //                 .show_ui(ui, |ui| {
-    //     //                     ui.selectable_value(&mut self.theme, EguiTheme::Dark, "Dark");
-    //     //                     ui.selectable_value(&mut self.theme, EguiTheme::Light, "Light");
-    //     //                 });
-    //     //         });
-    //     //         ui.separator();
-    //     //         ui.hyperlink("https://github.com/emilk/egui");
-    //     //         ui.separator();
-    //     //         ui.label("Rotation");
-    //     //         ui.add(egui::widgets::DragValue::new(&mut self.rotation));
-    //     //         ui.add(egui::widgets::Slider::new(
-    //     //             &mut self.rotation,
-    //     //             -180.0..=180.0,
-    //     //         ));
-    //     //         ui.label("Light Position");
-    //     //         ui.horizontal(|ui| {
-    //     //             ui.label("x:");
-    //     //             ui.add(egui::widgets::DragValue::new(&mut self.light_position.x));
-    //     //             ui.label("y:");
-    //     //             ui.add(egui::widgets::DragValue::new(&mut self.light_position.y));
-    //     //             ui.label("z:");
-    //     //             ui.add(egui::widgets::DragValue::new(&mut self.light_position.z));
-    //     //         });
-    //     //         ui.separator();
-    //     //         ui.text_edit_singleline(&mut self.text);
-    //     //     });
-    //     let (_, shapes) = egui_integration.end_frame(&window);
-    //     let clipped_meshes = egui_integration.context().tessellate(shapes);
-    //     egui_integration
-    //         .paint(command_buffer, image_index, clipped_meshes);
-    // }
+    fn create_egui_integration(&mut self) {
+        let surface_resolution = self.surface_resolution.as_ref().unwrap();
+        let window = self.window.as_ref().unwrap();
+        let device = self.device.as_ref().unwrap();
+        let surface_format = self.surface_format.as_ref().unwrap();
+        let swapchain_loader = self.swapchain_loader.as_ref().unwrap();
+        let swapchain = self.swapchain.as_ref().unwrap();
+        let allocator = self.allocator.as_ref().unwrap();
+        let egui_integration = Integration::new(
+            surface_resolution.width,
+            surface_resolution.height,
+            window.scale_factor(),
+            egui::FontDefinitions::default(),
+            egui::Style::default(),
+            device.clone(),
+            Arc::clone(&allocator),
+            swapchain_loader.clone(),
+            swapchain.clone(),
+            surface_format.clone(),
+        );
+        self.egui_integration = Some(egui_integration);
+    }
+
+    fn ui(&self, command_buffer: &vk::CommandBuffer, image_index: usize) {
+
+    }
 
     fn update_uniform_buffer(&mut self) {
         let camera = self.camera.as_mut().unwrap();
@@ -1350,26 +1107,31 @@ impl App {
         self.create_framebuffers();
         self.create_draw_command_buffers();
 
-        // let egui_integration = self.egui_integration.as_mut().unwrap();
-        // let surface_resolution = self.surface_resolution.as_ref().unwrap();
-        // let swapchain = self.swapchain.as_ref().unwrap();
-        // let surface_format = self.surface_format.as_ref().unwrap();
+        let egui_integration = self.egui_integration.as_mut().unwrap();
+        let surface_resolution = self.surface_resolution.as_ref().unwrap();
+        let swapchain = self.swapchain.as_ref().unwrap();
+        let surface_format = self.surface_format.as_ref().unwrap();
 
-        // egui_integration.update_swapchain(
-        //     surface_resolution.width,
-        //     surface_resolution.height,
-        //     swapchain.clone(),
-        //     surface_format.clone(),
-        // );
+        egui_integration.update_swapchain(
+            surface_resolution.width,
+            surface_resolution.height,
+            swapchain.clone(),
+            surface_format.clone(),
+        );
 
     }
 
     pub fn egui_integration_handle_event<T>(&mut self, winit_event: &winit::event::Event<T>) {
-        // let egui_integration = self.egui_integration.as_mut().unwrap();
-        // egui_integration.handle_event(winit_event);
+        let egui_integration = self.egui_integration.as_mut().unwrap();
+        egui_integration.handle_event(winit_event);
     }
 
     pub fn render(&mut self) {
+        let surface_resolution = self.surface_resolution.as_ref().unwrap();
+        if surface_resolution.width == 0 || surface_resolution.height == 0 {
+            return;
+        }
+
         self.update_uniform_buffer();
 
         let device = self.device.as_ref().unwrap();
@@ -1399,6 +1161,157 @@ impl App {
                 )
                 .expect("Failed to acquire swapchain image.");
             
+            // record draw commands
+            let clear_values = [
+                vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [0.0, 0.0, 0.0, 1.0],
+                    },
+                },
+                vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                },
+            ];
+
+            let descriptor_sets = self.descriptor_sets.as_ref()
+                .expect("Could not get `descriptor_sets`.");
+            let pipeline = self.pipeline.as_ref()
+                .expect("Could not get `pipeline`.");
+
+            let graphics_pipeline = pipeline.pipeline();
+            let render_pass = pipeline.render_pass();
+            let pipeline_layout = pipeline.pipeline_layout();
+            
+            let framebuffers = self.framebuffers.as_ref()
+                .expect("Could not get `framebuffers`.");
+            let surface_resolution = self.surface_resolution.as_ref()
+                .expect("Could not get `surface_resolution`.");
+
+            let device = self.device.as_ref()
+                .expect("Could not get `device`.");
+
+            let vertex_buffers = self.vertex_buffers.as_ref()
+                .expect("Could not get `vertex_buffers`");
+            let index_buffers = self.index_buffers.as_ref()
+                .expect("Could not get `index_buffers`.");
+            let entities = self.entities.as_ref()
+                .expect("Could not get `entity`.");
+            let index_count = entities[0].indices().len() as u32;
+
+            let command_buffer = draw_command_buffers[image_index as usize];
+
+            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+                .render_pass(*render_pass)
+                .framebuffer(framebuffers[image_index as usize])
+                .render_area(vk::Rect2D {
+                    offset: vk::Offset2D { x: 0, y: 0 },
+                    extent: *surface_resolution,
+                })
+                .clear_values(&clear_values);
+
+            // recreate viewports and scissors
+            // TODO remove these code
+            let viewports = [vk::Viewport {
+                x: 0.0,
+                y: 0.0,
+                width: surface_resolution.width as f32,
+                height: surface_resolution.height as f32,
+                min_depth: 0.0,
+                max_depth: 1.0,
+            }];
+
+            let scissors = [vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: *surface_resolution,
+            }];
+
+            device
+                .reset_command_buffer(
+                    command_buffer,
+                    vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+                )
+                .expect("Reset command buffer failed.");
+    
+            let command_buffer_begin_info = vk::CommandBufferBeginInfo::default();
+    
+            device
+                .begin_command_buffer(command_buffer, &command_buffer_begin_info)
+                .expect("Begin commandbuffer");
+                
+            device.cmd_begin_render_pass(
+                command_buffer,
+                &render_pass_begin_info,
+                vk::SubpassContents::INLINE,
+            );
+            device.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                *graphics_pipeline,
+            );
+
+            device.cmd_set_viewport(command_buffer, 0, &viewports);
+            device.cmd_set_scissor(command_buffer, 0, &scissors);
+            device.cmd_bind_vertex_buffers(
+                command_buffer,
+                0,
+                &[*vertex_buffers[0].buffer()],
+                &[0],
+            );
+            device.cmd_bind_index_buffer(
+                command_buffer,
+                *index_buffers[0].buffer(),
+                0,
+                vk::IndexType::UINT16,
+            );
+
+            device.cmd_bind_descriptor_sets(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                *pipeline_layout,
+                0,
+                &[descriptor_sets[image_index as usize]],
+                &[],
+            );
+
+            device.cmd_draw_indexed(
+                command_buffer,
+                index_count,
+                1,
+                0,
+                0,
+                1,
+            );
+
+            device.cmd_end_render_pass(command_buffer);
+
+            // self.egui_ui(command_buffer, image_index);
+            ///////////////////////////////////// egui /////////////////////////////////
+            let egui_integration = self.egui_integration.as_mut().unwrap();
+            let window = self.window.as_ref().unwrap();
+
+            egui_integration.begin_frame();
+            egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
+                ui.heading("Hello");
+                // ui.label("Hello egui!");
+                // ui.separator();
+                // ui.hyperlink("https://github.com/emilk/egui");
+                // ui.separator();
+                // ui.label("Rotation");
+            });
+            let (_, shapes) = egui_integration.end_frame(&window);
+
+            let clipped_meshes = egui_integration.context().tessellate(shapes);
+            egui_integration
+                .paint(command_buffer, image_index as usize, clipped_meshes);
+            ///////////////////////////////////// egui /////////////////////////////////
+
+            device
+                .end_command_buffer(command_buffer)
+                .expect("End commandbuffer");
+
             if vk::Fence::null() != images_inflight[image_index as usize] {
                 let fences = &[images_inflight[image_index as usize]];
 
@@ -1460,11 +1373,14 @@ impl Drop for App {
         let device = self.device.as_ref().unwrap();
         let surface_loader = self.surface_loader.as_ref().unwrap();
         let debug_utils_loader = self.debug_utils_loader.as_ref().unwrap();
-
+        let mut egui_integration = self.egui_integration.take().unwrap();
         let allocator = self.allocator.take().unwrap();
+
         unsafe {
             device.device_wait_idle().unwrap();
-            // drop(self.egui_integration.take().unwrap());
+            
+            egui_integration.destroy();
+            drop(egui_integration);
             drop(allocator);
 
             drop(self.index_buffers.take().unwrap());
