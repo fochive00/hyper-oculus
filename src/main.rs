@@ -6,12 +6,13 @@ mod pipelines;
 mod helpers;
 mod entities;
 mod cameras;
-mod fps_calculator;
+mod utils;
 
-use fps_calculator::FPScalculator;
+use utils::FPScalculator;
 use cameras::Camera;
 
-use std::thread;
+// use std::thread;
+use async_std::task;
 use std::sync::{Arc, Mutex};
 use std::time;
 
@@ -28,13 +29,13 @@ fn main() {
     let fps_calculator = Arc::new(Mutex::new(FPScalculator::new()));
     let fps_calculator_clone = Arc::clone(&fps_calculator);
     
-    thread::spawn(move || {
+    task::spawn(async move {
         loop {
             let fps = fps_calculator_clone.lock().unwrap().fps();
             println!("fps: {}", fps);
     
             let one_second = time::Duration::from_secs(2);
-            thread::sleep(one_second);
+            task::sleep(one_second).await;
         }
     });
 

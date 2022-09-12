@@ -23,6 +23,7 @@ use ash::extensions::{
 };
 
 use ash::vk;
+
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 // use std::mem::ManuallyDrop;
@@ -32,7 +33,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
 pub struct App {
-    window: Option<Window>,
+    window: Option<Window>, 
     entry: Option<ash::Entry>,
     instance: Option<ash::Instance>,
     max_frames_in_flight: Option<usize>,
@@ -190,7 +191,7 @@ impl App {
             let extension_names_raw = {
                 let mut extension_names_raw = surface_extensions
                     .iter()
-                    .map(|ext| ext.as_ptr())
+                    .map(|ext| *ext)
                     .collect::<Vec<_>>();
                 extension_names_raw.push(DebugUtils::name().as_ptr());
 
