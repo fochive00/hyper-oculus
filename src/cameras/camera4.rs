@@ -1,6 +1,6 @@
 
-use super::math;
-use super::{Camera, CameraProj3};
+use crate::core::math::{self, cross4};
+use super::{Camera, Camera3};
 
 use std::{collections::HashMap, hash::Hash};
 use std::time::Instant;
@@ -37,14 +37,15 @@ pub struct UniformBufferObject {
     pub cam4_const: f32,
 }
 
-pub struct CameraProj4 {
-    camera_proj3: CameraProj3,
+pub struct Camera4 {
+    camera3: Camera3,
 
     fovy: f32,
     near: f32,
     far: f32,
 
-    position: na::Point4<f32>,
+    position: na::Point4<f32>,  // the position of the camera
+    target: na::Point4<f32>,   // the point we look at
 
     w: na::Vector4<f32>,
     x: na::Vector4<f32>,
@@ -62,43 +63,31 @@ pub struct CameraProj4 {
     actions: HashMap<Action, f32>,
 }
 
-impl CameraProj4 {
+impl Camera4 {
     pub fn new() -> Self {
-        let camera_proj3 = CameraProj3::new();
+        let camera3 = Camera3::new();
 
         let fovy = 3.14 / 4.0;
-        let near = -10.0;
-        let far = 10.0;
+        let near = 10.0;
+        let far = 1000.0;
         
-        // let position = na::Point4::new(20.0, 20.0, 20.0, 20.0);
-        let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
+        let position = na::Point4::new(2.0, 2.0, 2.0, 4.0);
+        let target = na::Point4::origin();
 
-        // let target = na::Point4::origin();
-        let x_axis = na::Vector4::new(1.0, 0.0, 0.0, 0.0);
-        let y_axis = na::Vector4::new(0.0, 1.0, 0.0, 0.0);
-        let z_axis = na::Vector4::new(0.0, 0.0, 1.0, 0.0);
-        let w_axis = na::Vector4::new(0.0, 0.0, 0.0, 1.0);
-
-        // let w = (target - position).normalize();
-        // let z = math::cross(&w, &x_axis, &y_axis);
-        // let y = math::cross(&w, &x_axis, &z);
-        // let x = math::cross(&w, &y, &z);
-        let x = x_axis;
-        let y = y_axis;
-        let z = z_axis;
-        let w = -w_axis;
-
-        // println!("w: {:?}", w);
-        // println!("x: {:?}", x);
-        // println!("y: {:?}", y);
-        // println!("z: {:?}", z);
+        let w = (target - position).normalize();
+        let y = na::Vector4::new(0.0, 1.0, 0.0, 0.0);
+        let z = na::Vector4::new(0.0, 0.0, 1.0, 0.0);
+        let x = cross4(&y, &z, &w);
 
         let movement_speed = 10.0;
         let rotation_speed = 0.1;
 
-        let proj = math::ortho_short(near, far, 10.0);
-        // let proj = na::Matrix5::identity();
-        let view = math::view(&position, &x, &y, &z, &w);
+        // let proj = math::ortho4_short(near, far, 10.0);
+        let proj = na::Matrix5::identity();
+
+
+        // let view = na::Matrix5::identity();
+        let view = math::view4(&position, &x, &y, &z, &w);
         // println!("view: {:?}", view);
 
         let time = Instant::now();
@@ -119,11 +108,12 @@ impl CameraProj4 {
         };
 
         Self {
-            camera_proj3,
+            camera3,
             fovy,
             near,
             far,
             position,
+            target,
             w,
             x,
             y,
@@ -140,22 +130,46 @@ impl CameraProj4 {
 
     pub fn data(&self, model: &na::Matrix5<f32>) -> UniformBufferObject {
         let transform = self.transform() * model;
-        let cam4_col = transform.column(3).remove_row(3);
-        let cam4_row = transform.row(3).remove_column(3).transpose();
-        let cam4_trans = transform.remove_row(3).remove_column(3);
-        let cam3_trans = self.camera_proj3.transform();
+        let cam4_col = transform.fixed_slice::<4,1>(0,4);
+        let cam4_row = transform.fixed_slice::<1,4>(4,0).transpose();
+        let cam4_trans = transform.fixed_slice::<4,4>(0,0);
+        let cam3_trans = self.camera3.transform();
         let cam4_const = transform[(4, 4)];
         UniformBufferObject {
-            cam4_trans,
-            cam4_col,
-            cam4_row,
+            cam4_trans: cam4_trans.into(),
+            cam4_col: cam4_col.into(),
+            cam4_row: cam4_row.into(),
             cam3_trans,
             cam4_const,
         }
     }
+
+    pub fn position(&self) -> na::Point4<f32> {
+        return self.position
+    }
+
+    pub fn set_position(&mut self, pos: na::Point4<f32>) {
+        self.position = pos;
+    }
+
+    pub fn w(&self) -> na::Vector4<f32> {
+        return self.w
+    }
+
+    pub fn x(&self) -> na::Vector4<f32> {
+        return self.x
+    }
+
+    pub fn y(&self) -> na::Vector4<f32> {
+        return self.y
+    }
+
+    pub fn z(&self) -> na::Vector4<f32> {
+        return self.z
+    }
 }
 
-impl Camera for CameraProj4 {
+impl Camera for Camera4 {
     type Transform = na::Matrix5<f32>;
 
     fn transform(&self) -> Self::Transform {
@@ -163,7 +177,7 @@ impl Camera for CameraProj4 {
     }
 
     fn update_view(&mut self) {
-        self.camera_proj3.update_view();
+        self.camera3.update_view();
 
         let dt = self.time.elapsed().as_secs_f32();
         self.time = Instant::now();
@@ -194,11 +208,11 @@ impl Camera for CameraProj4 {
         self.position += move_direction * self.movement_speed * dt;
 
         // update view matrix
-        self.view = math::view(&self.position, &self.w, &self.x, &self.y, &self.z);
+        self.view = math::view4(&self.position, &self.w, &self.x, &self.y, &self.z);
     }
 
     fn handle_event<T>(&mut self, event: &Event<T>) {
-        self.camera_proj3.handle_event(event);
+        self.camera3.handle_event(event);
 
         match event {
             Event::WindowEvent { event, .. } => {

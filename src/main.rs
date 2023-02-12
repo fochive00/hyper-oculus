@@ -1,12 +1,13 @@
 
-mod config;
-mod app;
+mod core;
 mod buffers;
 mod pipelines;
 mod helpers;
 mod entities;
 mod cameras;
 mod utils;
+mod config;
+mod app;
 
 use utils::FPScalculator;
 use cameras::Camera;

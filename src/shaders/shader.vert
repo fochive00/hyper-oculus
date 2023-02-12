@@ -16,7 +16,10 @@ layout(location = 0) out vec3 fragColor;
 
 vec4 transform(in vec4 position) {
     vec4 pos4d = ((ubo.cam4_trans * inPosition + ubo.cam4_col) / (ubo.cam4_row * inPosition + ubo.cam4_const));
-    pos4d = pos4d / pos4d.w;
+
+    // set pos4d.w = 0 for 4d orthogonal projection
+    // set pos4d.w = 1.0 for 3d homogeneous coordinate
+    pos4d.w = 1.0;
     return ubo.cam3_trans * pos4d;
 }
 

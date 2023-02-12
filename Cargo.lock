@@ -66,22 +66,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "006ca68e0f2b03f22d6fa9f2860f85aed430d257fec20f8879b2145e7c7ae1a6"
 
 [[package]]
-name = "ash-simplex"
-version = "0.1.0"
-dependencies = [
- "ash",
- "ash-window",
- "async-std",
- "egui",
- "egui-winit-ash-integration",
- "gpu-allocator",
- "memoffset",
- "nalgebra",
- "once_cell",
- "winit",
-]
-
-[[package]]
 name = "ash-window"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -682,6 +666,22 @@ dependencies = [
  "log",
  "thiserror",
  "windows",
+]
+
+[[package]]
+name = "hyper-oculus"
+version = "0.1.0"
+dependencies = [
+ "ash",
+ "ash-window",
+ "async-std",
+ "egui",
+ "egui-winit-ash-integration",
+ "gpu-allocator",
+ "memoffset",
+ "nalgebra",
+ "once_cell",
+ "winit",
 ]
 
 [[package]]

@@ -1,12 +1,10 @@
 
-mod camera_proj3;
-pub use camera_proj3::CameraProj3;
+mod camera3;
+pub use camera3::Camera3;
 
-mod camera_proj4;
-pub use camera_proj4::CameraProj4;
-pub use camera_proj4::UniformBufferObject;
-
-mod math;
+mod camera4;
+pub use camera4::Camera4;
+pub use camera4::UniformBufferObject;
 
 extern crate nalgebra as na;
 

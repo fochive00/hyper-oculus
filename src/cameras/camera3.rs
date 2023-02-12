@@ -25,13 +25,14 @@ enum Action {
 }
 
 #[allow(dead_code)]
-pub struct CameraProj3 {
+pub struct Camera3 {
     aspect: f32,
     fovy: f32,
     znear: f32,
     zfar: f32,
 
     position: na::Point3<f32>,
+    look_at: na::Point3<f32>,
     look_direction: na::Vector3<f32>,
     right_direction: na::Vector3<f32>,
 
@@ -48,7 +49,7 @@ pub struct CameraProj3 {
     actions: HashMap<Action, f32>,
 }
 
-impl CameraProj3 {
+impl Camera3 {
     pub fn new() -> Self {
         let aspect = 16.0 / 9.0;
         let fovy = 3.14 / 4.0;
@@ -101,6 +102,7 @@ impl CameraProj3 {
             znear,
             zfar,
             position,
+            look_at: na::Point3::new(0.0, 0.0, 0.0),
             look_direction,
             right_direction,
             movement_speed,
@@ -161,7 +163,7 @@ impl CameraProj3 {
     }
 }
 
-impl super::Camera for CameraProj3 {
+impl super::Camera for Camera3 {
     type Transform = na::Matrix4<f32>;
     
     fn transform(&self) -> Self::Transform {

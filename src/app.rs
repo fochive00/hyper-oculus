@@ -5,7 +5,7 @@ use crate::buffers::Buffer;
 use crate::entities::{Vertex, Entity};
 
 use crate::cameras::Camera as CameraTrait;
-use crate::cameras::{UniformBufferObject, CameraProj4 as Camera};
+use crate::cameras::{UniformBufferObject, Camera4 as Camera};
 
 use nalgebra as na;
 use winit::{
@@ -954,10 +954,11 @@ impl App {
         fn calc_vertices(ubo: &UniformBufferObject, vertices: &Vec<Vertex>) {
             for v in vertices {
                 let pos = na::Vector4::from(v.pos);
-                let pos4d = (ubo.cam4_trans * pos + ubo.cam4_col) / ((ubo.cam4_row.transpose() * pos)[0] + ubo.cam4_const);
-                let pos4d = pos4d / pos4d[3];
+                let mut pos4d = (ubo.cam4_trans * pos + ubo.cam4_col) / ((ubo.cam4_row.transpose() * pos)[0] + ubo.cam4_const);
+                pos4d[3] = 1.0;
                 let gl_pos = ubo.cam3_trans * pos4d;
-                println!("{:?}", gl_pos / gl_pos[3]);
+                // println!("{:?}", gl_pos / gl_pos[3]);
+                println!("{:?}", pos4d)
             }
         }
 
@@ -1293,9 +1294,21 @@ impl App {
             let egui_integration = self.egui_integration.as_mut().unwrap();
             let window = self.window.as_ref().unwrap();
 
+            let camera = self.camera.as_ref().unwrap();
+
+
             egui_integration.begin_frame();
             egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
                 ui.heading("Hello");
+
+                ui.label(format!("position: {:?}", camera.position()));
+                ui.label(format!("w: {:?}", camera.w()));
+                ui.label(format!("x: {:?}", camera.x()));
+                ui.label(format!("y: {:?}", camera.y()));
+                ui.label(format!("z: {:?}", camera.z()));
+
+                // let text = egui::TextEdit
+                // ui.text_edit_singleline(text)
                 // ui.label("Hello egui!");
                 // ui.separator();
                 // ui.hyperlink("https://github.com/emilk/egui");
