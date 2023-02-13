@@ -26,9 +26,17 @@ pub fn view4(
     m_rot * m_trans
 }
 
-// pub fn perspective4() -> na::Matrix5<f32> {
-    
-// }
+pub fn perspective4(n: f32, f: f32) -> na::Matrix5<f32> {
+    let m = na::Matrix5::new(
+        n, 0., 0., 0., 0.,
+        0., n, 0., 0., 0.,
+        0., 0., n, 0., 0.,
+        0., 0., 0., n+f, -n*f,
+        0., 0., 0., 1., 0.,
+    );
+
+    return m
+}
 
 pub fn ortho4(
     x_near: f32, x_far: f32,

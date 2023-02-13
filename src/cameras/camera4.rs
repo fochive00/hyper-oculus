@@ -68,10 +68,11 @@ impl Camera4 {
         let camera3 = Camera3::new();
 
         let fovy = 3.14 / 4.0;
-        let near = 10.0;
-        let far = 1000.0;
+        let near = -0.1;
+        let far = -10.0;
         
-        let position = na::Point4::new(2.0, 2.0, 2.0, 4.0);
+        // let position = na::Point4::new(2.0, 2.0, 2.0, 4.0);
+        let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
         let target = na::Point4::origin();
 
         let w = (target - position).normalize();
@@ -79,11 +80,15 @@ impl Camera4 {
         let z = na::Vector4::new(0.0, 0.0, 1.0, 0.0);
         let x = cross4(&y, &z, &w);
 
-        let movement_speed = 10.0;
+        let movement_speed = 1.0;
         let rotation_speed = 0.1;
 
         // let proj = math::ortho4_short(near, far, 10.0);
-        let proj = na::Matrix5::identity();
+        // let proj = na::Matrix5::identity();
+        let proj = math::perspective4(near, far);
+        // let mut proj = na::Matrix5::from_diagonal(&na::Vector5::new(near, near,near,near,0.0));
+        // proj[(4,3)] = 1.0;
+        // proj[(4,4)] = 0.0;
 
 
         // let view = na::Matrix5::identity();

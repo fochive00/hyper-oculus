@@ -53,10 +53,12 @@ impl Camera3 {
     pub fn new() -> Self {
         let aspect = 16.0 / 9.0;
         let fovy = 3.14 / 4.0;
-        let znear = 0.1;
+
+        // The distance between the viewer (the origin) and the closest face of the frustum parallel to the xy-plane.
+        let znear = 1.0;
         let zfar = 1000.0;
 
-        let position = na::Point3::new(2.0, 2.0, 2.0);
+        let position = na::Point3::new(3.0, 1.0, 2.0);
         // let position = na::point!(2.0, 2.0, 2.0);
         let target = na::Point3::origin();
         let look_direction = (target - position).normalize();

@@ -1,13 +1,14 @@
-
-# Why understanding 4D is possible for humans?
-
+# Hyper Oculus
 
 
-# How to see 4D objects
 
-a_n is a 2D image
-you can see a 3D scene using a set of 2D images b = {a_1, a_2, a_3, ..., a_n}
-every 2D frame needs 
-
-b_n is a 3D scene
-you can see a 4D scene using a set of 3D scenes {b_1, b_2, b_3, ..., b_n}
+## TODO
+ - [ ] Math.
+ - [ ] Ergonomic controller.
+ - [ ] A nice looking UI.
+ - [ ] More objects. (Hypersphere, Regular Polyhedron, etc.)
+ - [ ] Mirror Reflections. I want to see objects throught mirrors.
+ - [ ] Reflection. So I can build 4D objects easily.
+ - [ ] Ray tracing.
+ - [ ] Multi-Player mode.
+ - [ ] 4D meta world.
