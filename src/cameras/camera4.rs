@@ -67,12 +67,13 @@ impl Camera4 {
     pub fn new() -> Self {
         let camera3 = Camera3::new();
 
-        let fovy = 3.14 / 4.0;
-        let near = -0.1;
-        let far = -10.0;
+        // let aspect = 1.0;
+        let fovy: f32 = 3.14 / 3.0;
+        let near: f32 = -0.1;
+        let far: f32 = -10.0;
         
-        // let position = na::Point4::new(2.0, 2.0, 2.0, 4.0);
-        let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
+        let position = na::Point4::new(2.0, 2.0, 2.0, 4.0);
+        // let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
         let target = na::Point4::origin();
 
         let w = (target - position).normalize();
@@ -85,7 +86,8 @@ impl Camera4 {
 
         // let proj = math::ortho4_short(near, far, 10.0);
         // let proj = na::Matrix5::identity();
-        let proj = math::perspective4(near, far);
+        let half_width = near * (fovy / 2.0).tan();
+        let proj = math::perspective4(near, far) * math::ortho4_short(near, far, half_width);
         // let mut proj = na::Matrix5::from_diagonal(&na::Vector5::new(near, near,near,near,0.0));
         // proj[(4,3)] = 1.0;
         // proj[(4,4)] = 0.0;

@@ -951,18 +951,18 @@ impl App {
         let entity = &self.entities.as_ref().unwrap()[0];
         let ubo = camera.data(&entity.transform());
 
-        fn calc_vertices(ubo: &UniformBufferObject, vertices: &Vec<Vertex>) {
-            for v in vertices {
-                let pos = na::Vector4::from(v.pos);
-                let mut pos4d = (ubo.cam4_trans * pos + ubo.cam4_col) / ((ubo.cam4_row.transpose() * pos)[0] + ubo.cam4_const);
-                pos4d[3] = 1.0;
-                let gl_pos = ubo.cam3_trans * pos4d;
-                // println!("{:?}", gl_pos / gl_pos[3]);
-                println!("{:?}", pos4d)
-            }
-        }
+        // fn calc_vertices(ubo: &UniformBufferObject, vertices: &Vec<Vertex>) {
+        //     for v in vertices {
+        //         let pos = na::Vector4::from(v.pos);
+        //         let mut pos4d = (ubo.cam4_trans * pos + ubo.cam4_col) / ((ubo.cam4_row.transpose() * pos)[0] + ubo.cam4_const);
+        //         pos4d[3] = 1.0;
+        //         let gl_pos = ubo.cam3_trans * pos4d;
+        //         // println!("{:?}", gl_pos / gl_pos[3]);
+        //         println!("{:?}", pos4d)
+        //     }
+        // }
 
-        calc_vertices(&ubo, &self.entities.as_ref().unwrap()[0].vertices());
+        // calc_vertices(&ubo, &self.entities.as_ref().unwrap()[0].vertices());
 
         let mut uniform_buffers = Vec::with_capacity(present_image_size);
         
@@ -977,7 +977,19 @@ impl App {
                 MemoryLocation::CpuToGpu
             );
 
-            uniform_buffer.set_data(&vec![ubo]);
+            let data = {
+                [
+                    ubo.cam4_trans.as_slice(),
+                    ubo.cam4_col.as_slice(),
+                    ubo.cam4_row.as_slice(),
+                    ubo.cam3_trans.as_slice(),
+                    &[ubo.cam4_const]
+                ]
+                .concat()
+            };
+
+            // uniform_buffer.set_data(&vec![ubo]);
+            uniform_buffer.set_data(&data);
 
             uniform_buffers.push(uniform_buffer);
         }
