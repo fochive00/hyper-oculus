@@ -107,13 +107,6 @@ This project uses the following open-source libraries and tools:
  - [egui](https://github.com/emilk/egui) - a simple, fast, and highly portable immediate mode GUI library for Rust
  - [egui-winit-ash-integration](https://github.com/MatchaChoco010/egui-winit-ash-integration) - egui integration crate for egui-winit and ash
 
-Papers, some of then I haven't read yet.
- - "Visualizing Four-Dimensional Geometry" by Andrew J. Hanson (1995)
- - "Projections of Four-Dimensional Objects" by Thomas F. Banchoff (1985)
- - "Exploring Hyper-Space: Non-Linear Visualization of High-Dimensional Geometry and Data" by Chris W. Johnson, et al. (1997)
- - "Visualizing the Fourth Dimension" by George W. Hart (1995)
- - "Immersive Visualization of Four-Dimensional Geometry" by Michael McGuire and Donna Cox (2005)
-
 Others
  - ChatGPT - I would like to extend a special thanks to ChatGPT, an AI language model that provided invaluable help and support in organizing and improving the content of this project's README.md file.
 
