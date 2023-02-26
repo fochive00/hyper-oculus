@@ -104,7 +104,7 @@ impl Camera3 {
             znear,
             zfar,
             position,
-            look_at: na::Point3::new(0.0, 0.0, 0.0),
+            look_at: target,
             look_direction,
             right_direction,
             movement_speed,
@@ -163,6 +163,23 @@ impl Camera3 {
             _ => (),
         }
     }
+
+    pub fn position(&self) -> na::Point3<f32> {
+        return self.position
+    }
+
+    pub fn look_at(&self) -> na::Point3<f32> {
+        return (self.position + self.look_direction)
+    }
+
+    pub fn right_direction(&self) -> na::Vector3<f32> {
+        return self.right_direction
+    }
+
+    pub fn look_direction(&self) -> na::Vector3<f32> {
+        return self.look_direction
+    }
+
 }
 
 impl super::Camera for Camera3 {

@@ -1311,7 +1311,7 @@ impl App {
 
             egui_integration.begin_frame();
             egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
-                ui.heading("Hello");
+                ui.heading("Camera4");
 
                 ui.label(format!("position: {:?}", camera.position()));
                 ui.label(format!("w: {:?}", camera.w()));
@@ -1319,6 +1319,25 @@ impl App {
                 ui.label(format!("y: {:?}", camera.y()));
                 ui.label(format!("z: {:?}", camera.z()));
 
+                ui.separator();
+                ui.heading("Camera3");
+                ui.label(format!("position: {:?}", camera.camera3.position()));
+                ui.label(format!("look at: {:?}", camera.camera3.look_at()));
+                ui.label(format!("look direction: {:?}", camera.camera3.look_direction()));
+                ui.label(format!("right direction: {:?}", camera.camera3.right_direction()));
+
+                ui.separator();
+                ui.heading("Hyper Cube");
+                for v in self.entities.as_ref().unwrap()[0].vertices().iter() {
+                    let ve = na::Vector5::new(v.pos[0], v.pos[1], v.pos[2], v.pos[3], 1.0);
+                    let mut tmp = camera.transform() * ve;
+                    // let mut tmp = ortho * proj * view * ve;
+                    
+                    // let mut tmp = na::Matrix5::identity() * ve;
+                    tmp = tmp / tmp[4];
+
+                    ui.label(format!("{:?}", tmp));
+                }
                 // let text = egui::TextEdit
                 // ui.text_edit_singleline(text)
                 // ui.label("Hello egui!");

@@ -9,7 +9,7 @@ extern crate nalgebra as na;
 use winit::{
     event::{ButtonId, DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent}
 };
-// use std::f32::consts::PI;
+use std::f32::consts::PI;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 enum Input {
@@ -38,7 +38,7 @@ pub struct UniformBufferObject {
 }
 
 pub struct Camera4 {
-    camera3: Camera3,
+    pub camera3: Camera3,
 
     fovy: f32,
     near: f32,
@@ -68,11 +68,11 @@ impl Camera4 {
         let camera3 = Camera3::new();
 
         // let aspect = 1.0;
-        let fovy: f32 = 3.14 / 3.0;
-        let near: f32 = -0.1;
-        let far: f32 = -10.0;
+        let fovy: f32 = PI / 3.0;
+        let near: f32 = -1.0;
+        let far: f32 = -5.0;
         
-        let position = na::Point4::new(2.0, 2.0, 2.0, 4.0);
+        let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
         // let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
         let target = na::Point4::origin();
 
@@ -84,18 +84,11 @@ impl Camera4 {
         let movement_speed = 1.0;
         let rotation_speed = 0.1;
 
-        // let proj = math::ortho4_short(near, far, 10.0);
-        // let proj = na::Matrix5::identity();
-        let half_width = near * (fovy / 2.0).tan();
-        let proj = math::perspective4(near, far) * math::ortho4_short(near, far, half_width);
-        // let mut proj = na::Matrix5::from_diagonal(&na::Vector5::new(near, near,near,near,0.0));
-        // proj[(4,3)] = 1.0;
-        // proj[(4,4)] = 0.0;
+        let half_width = (near - far).abs() / 2.0 * (fovy / 2.0).tan();
+        let proj = math::ortho4_short(near, far, half_width) * math::perspective4(near, far);
 
 
-        // let view = na::Matrix5::identity();
         let view = math::view4(&position, &x, &y, &z, &w);
-        // println!("view: {:?}", view);
 
         let time = Instant::now();
 
@@ -181,6 +174,7 @@ impl Camera for Camera4 {
 
     fn transform(&self) -> Self::Transform {
         self.proj * self.view
+        // na::Matrix5::<f32>::identity()
     }
 
     fn update_view(&mut self) {
@@ -215,7 +209,7 @@ impl Camera for Camera4 {
         self.position += move_direction * self.movement_speed * dt;
 
         // update view matrix
-        self.view = math::view4(&self.position, &self.w, &self.x, &self.y, &self.z);
+        self.view = math::view4(&self.position, &self.x, &self.y, &self.z, &self.w);
     }
 
     fn handle_event<T>(&mut self, event: &Event<T>) {
