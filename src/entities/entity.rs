@@ -44,7 +44,26 @@ impl Entity {
     }
 
     pub fn hypercube() -> Self {
-        let vertices = vec![
+        // let vertices = vec![
+        //     Vertex { pos: [-0.5, -0.5, -0.5, -0.5], color: [1.0, 0.0, 0.0] },
+        //     Vertex { pos: [-0.5, -0.5, -0.5,  0.5], color: [0.0, 1.0, 0.0] },
+        //     Vertex { pos: [-0.5, -0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] },
+        //     Vertex { pos: [-0.5, -0.5,  0.5,  0.5], color: [1.0, 1.0, 1.0] },
+        //     Vertex { pos: [-0.5,  0.5, -0.5, -0.5], color: [1.0, 0.0, 0.0] },
+        //     Vertex { pos: [-0.5,  0.5, -0.5,  0.5], color: [0.0, 1.0, 0.0] },
+        //     Vertex { pos: [-0.5,  0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] },
+        //     Vertex { pos: [-0.5,  0.5,  0.5,  0.5], color: [1.0, 1.0, 1.0] },
+        //     Vertex { pos: [ 0.5, -0.5, -0.5, -0.5], color: [1.0, 0.0, 0.0] },
+        //     Vertex { pos: [ 0.5, -0.5, -0.5,  0.5], color: [0.0, 1.0, 0.0] },
+        //     Vertex { pos: [ 0.5, -0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] },
+        //     Vertex { pos: [ 0.5, -0.5,  0.5,  0.5], color: [1.0, 1.0, 1.0] },
+        //     Vertex { pos: [ 0.5,  0.5, -0.5, -0.5], color: [1.0, 0.0, 0.0] },
+        //     Vertex { pos: [ 0.5,  0.5, -0.5,  0.5], color: [0.0, 1.0, 0.0] },
+        //     Vertex { pos: [ 0.5,  0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] },
+        //     Vertex { pos: [ 0.5,  0.5,  0.5,  0.5], color: [1.0, 1.0, 1.0] },
+        // ];
+
+        let mut vertices = vec![
             Vertex { pos: [-0.5, -0.5, -0.5, -0.5], color: [1.0, 0.0, 0.0] },
             Vertex { pos: [-0.5, -0.5, -0.5,  0.5], color: [0.0, 1.0, 0.0] },
             Vertex { pos: [-0.5, -0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] },
@@ -62,6 +81,15 @@ impl Entity {
             Vertex { pos: [ 0.5,  0.5,  0.5, -0.5], color: [0.0, 0.0, 1.0] },
             Vertex { pos: [ 0.5,  0.5,  0.5,  0.5], color: [1.0, 1.0, 1.0] },
         ];
+
+        // for v in vertices.iter_mut() {
+        //     if v.pos[3] == 0.5 {
+        //         v.pos[0] = v.pos[0] * 0.6;
+        //         v.pos[1] = v.pos[1] * 0.6;
+        //         v.pos[2] = v.pos[2] * 0.6;
+        //         v.pos[3] = v.pos[3] * 0.6;
+        //     }
+        // }
 
         // let indices = vec![
         //     // z, w
@@ -189,6 +217,8 @@ impl Entity {
 
         // framework
         let indices = vec!(
+            // 0, 1, 0,
+            // 0, 2, 0
             0, 1, 0,    0, 2, 0,    0, 4, 0,    0, 8, 0,
             1, 3, 1,    1, 5, 1,    1, 9, 1,
             2, 3, 2,    2, 6, 2,    2, 10, 2,

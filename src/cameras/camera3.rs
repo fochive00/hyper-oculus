@@ -169,7 +169,7 @@ impl Camera3 {
     }
 
     pub fn look_at(&self) -> na::Point3<f32> {
-        return (self.position + self.look_direction)
+        return self.position + self.look_direction
     }
 
     pub fn right_direction(&self) -> na::Vector3<f32> {

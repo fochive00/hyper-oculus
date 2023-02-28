@@ -33,7 +33,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
 pub struct App {
-    window: Option<Window>, 
+    window: Option<Window>,
     entry: Option<ash::Entry>,
     instance: Option<ash::Instance>,
     max_frames_in_flight: Option<usize>,
@@ -127,7 +127,7 @@ impl App {
         app.create_descriptor_set_layouts();
         app.create_pipeline();
 
-        app.create_egui_integration();
+        app.create_egui_integration(event_loop);
 
         app.create_entities();
         app.create_camera();
@@ -156,7 +156,8 @@ impl App {
         
             // Grab and hide the cursor
         window.set_cursor_visible(false);
-        window.set_cursor_grab(true)
+        window.set_cursor_grab(winit::window::CursorGrabMode::Confined)
+            .or_else(|_e| window.set_cursor_grab(winit::window::CursorGrabMode::Locked))
             .expect("Failed to grab the cursor.");
 
         self.window = Some(window);
@@ -534,13 +535,6 @@ impl App {
     }
 
     fn create_depth_resource(&mut self) {
-        
-        // fn find_supported_format(candidates: &Vec<vk::Format>, tilling: vk::ImageTiling, features: vk::FormatFeatureFlags) {
-        //     for format in candidates {
-        //         let props = 
-        //     }
-        // }
-        
         let device = self.device.as_ref().unwrap();
         let surface_resolution = self.surface_resolution.as_ref().unwrap();
         let allocator = self.allocator.as_ref().unwrap();
@@ -873,6 +867,7 @@ impl App {
     }
 
     fn create_vertex_buffers(&mut self) {
+        // let mvp = self.camera().transform();
         let device = self.device.as_ref().unwrap();
         let allocator = self.allocator.as_ref().unwrap();
         let queue = self.present_queue.as_ref().unwrap();
@@ -881,7 +876,21 @@ impl App {
         let entities = self.entities.as_ref().unwrap();
         let entity = &entities[0];
 
-        let vertices = entity.vertices();
+
+        let mut vertices = entity.vertices();
+
+        // testing mvp
+        // for v in vertices.iter_mut() {
+        //     let v5 = na::Point5::new(v.pos[0], v.pos[1], v.pos[2], v.pos[3], 1.0);
+        //     let v5 = mvp * v5;
+        //     let v5 = v5 / v5[4];
+            
+        //     v.pos[0] = v5[0];
+        //     v.pos[1] = v5[1];
+        //     v.pos[2] = v5[2];
+        //     v.pos[3] = v5[3];
+        // }
+
         let buffer_size = std::mem::size_of::<Vertex>() as u64 * vertices.len() as u64;
 
         let mut staging_buffer = Buffer::new(
@@ -1018,7 +1027,7 @@ impl App {
         self.allocator = Some(allocator);
     }
 
-    fn create_egui_integration(&mut self) {
+    fn create_egui_integration(&mut self, event_loop: &EventLoop<()>) {
         let surface_resolution = self.surface_resolution.as_ref().unwrap();
         let window = self.window.as_ref().unwrap();
         let device = self.device.as_ref().unwrap();
@@ -1026,7 +1035,11 @@ impl App {
         let swapchain_loader = self.swapchain_loader.as_ref().unwrap();
         let swapchain = self.swapchain.as_ref().unwrap();
         let allocator = self.allocator.as_ref().unwrap();
+        let queue_family_index = self.queue_family_index.as_ref().unwrap();
+        let present_queue = self.present_queue.as_ref().unwrap();
+
         let egui_integration = Integration::new(
+            event_loop,
             surface_resolution.width,
             surface_resolution.height,
             window.scale_factor(),
@@ -1034,6 +1047,8 @@ impl App {
             egui::Style::default(),
             device.clone(),
             Arc::clone(&allocator),
+            *queue_family_index,
+            *present_queue,
             swapchain_loader.clone(),
             swapchain.clone(),
             surface_format.clone(),
@@ -1135,9 +1150,9 @@ impl App {
 
     }
 
-    pub fn egui_integration_handle_event<T>(&mut self, winit_event: &winit::event::Event<T>) {
+    pub fn egui_integration_handle_event(&mut self, event: &winit::event::WindowEvent) {
         let egui_integration = self.egui_integration.as_mut().unwrap();
-        egui_integration.handle_event(winit_event);
+        egui_integration.handle_event(event);
     }
 
     pub fn render(&mut self) {
@@ -1309,7 +1324,7 @@ impl App {
             let camera = self.camera.as_ref().unwrap();
 
 
-            egui_integration.begin_frame();
+            egui_integration.begin_frame(window);
             egui::SidePanel::left("my_side_panel").show(&egui_integration.context(), |ui| {
                 ui.heading("Camera4");
 
@@ -1346,11 +1361,11 @@ impl App {
                 // ui.separator();
                 // ui.label("Rotation");
             });
-            let (_, shapes) = egui_integration.end_frame(&window);
+            let output = egui_integration.end_frame(window);
 
-            let clipped_meshes = egui_integration.context().tessellate(shapes);
+            let clipped_meshes = egui_integration.context().tessellate(output.shapes);
             egui_integration
-                .paint(command_buffer, image_index as usize, clipped_meshes);
+                .paint(command_buffer, image_index as usize, clipped_meshes, output.textures_delta);
             ///////////////////////////////////// egui /////////////////////////////////
 
             device

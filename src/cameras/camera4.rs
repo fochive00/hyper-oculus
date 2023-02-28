@@ -68,9 +68,9 @@ impl Camera4 {
         let camera3 = Camera3::new();
 
         // let aspect = 1.0;
-        let fovy: f32 = PI / 3.0;
+        let fovy: f32 = PI / 1.5;
         let near: f32 = -1.0;
-        let far: f32 = -5.0;
+        let far: f32 = -100.0;
         
         let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
         // let position = na::Point4::new(0.0, 0.0, 0.0, 4.0);
@@ -84,15 +84,14 @@ impl Camera4 {
         let movement_speed = 1.0;
         let rotation_speed = 0.1;
 
-        let half_width = (near - far).abs() / 2.0 * (fovy / 2.0).tan();
+        let half_width = (near).abs() / 2.0 * (fovy / 2.0).tan();
         let proj = math::ortho4_short(near, far, half_width) * math::perspective4(near, far);
-
+        // let proj = na::Matrix5::identity();
 
         let view = math::view4(&position, &x, &y, &z, &w);
 
         let time = Instant::now();
 
-        // println!("projective: {:?}", proj);
         let input_map = HashMap::new();
 
         let actions = {
