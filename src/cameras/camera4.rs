@@ -7,7 +7,7 @@ use std::time::Instant;
 extern crate nalgebra as na;
 
 use winit::{
-    event::{ButtonId, DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent}
+    event::{ButtonId, DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent}
 };
 use std::f32::consts::PI;
 
@@ -216,46 +216,38 @@ impl Camera for Camera4 {
 
         match event {
             Event::WindowEvent { event, .. } => {
-                match event {
-                    WindowEvent::KeyboardInput {
-                        input:
-                            winit::event::KeyboardInput {
-                                virtual_keycode: Some(key_code),
-                                state,
-                                ..
-                            },
-                        ..
-                    } => {
-                        let prev_state = self.input_map.insert(Input::Key(*key_code), *state);
+                if let WindowEvent::KeyboardInput {
+                    input: KeyboardInput { virtual_keycode: Some(key_code), state, .. },
+                    ..
+                } = event {
+                    let prev_state = self.input_map.insert(Input::Key(*key_code), *state);
 
-                        let factor = if prev_state == Some(*state) {
-                            0.0 // repeat
-                        } else {
-                            match state {
-                                ElementState::Pressed => 1.0,
-                                ElementState::Released => -1.0,
-                            }
-                        };
-
-                        match key_code {
-                            VirtualKeyCode::Y => *self.actions.get_mut(&Action::X).unwrap() += factor,
-                            VirtualKeyCode::H => *self.actions.get_mut(&Action::X).unwrap() -= factor,
-                            VirtualKeyCode::U => *self.actions.get_mut(&Action::Y).unwrap() += factor,
-                            VirtualKeyCode::J => *self.actions.get_mut(&Action::Y).unwrap() -= factor,
-                            VirtualKeyCode::I => *self.actions.get_mut(&Action::Z).unwrap() += factor,
-                            VirtualKeyCode::K => *self.actions.get_mut(&Action::Z).unwrap() -= factor,
-                            VirtualKeyCode::O => *self.actions.get_mut(&Action::W).unwrap() += factor,
-                            VirtualKeyCode::L => *self.actions.get_mut(&Action::W).unwrap() -= factor,
-                            _ => ()
+                    let factor = if prev_state == Some(*state) {
+                        0.0 // repeat
+                    } else {
+                        match state {
+                            ElementState::Pressed => 1.0,
+                            ElementState::Released => -1.0,
                         }
-                    },
-                    _ => ()
+                    };
+
+                    match key_code {
+                        VirtualKeyCode::Y => *self.actions.get_mut(&Action::X).unwrap() += factor,
+                        VirtualKeyCode::H => *self.actions.get_mut(&Action::X).unwrap() -= factor,
+                        VirtualKeyCode::U => *self.actions.get_mut(&Action::Y).unwrap() += factor,
+                        VirtualKeyCode::J => *self.actions.get_mut(&Action::Y).unwrap() -= factor,
+                        VirtualKeyCode::I => *self.actions.get_mut(&Action::Z).unwrap() += factor,
+                        VirtualKeyCode::K => *self.actions.get_mut(&Action::Z).unwrap() -= factor,
+                        VirtualKeyCode::O => *self.actions.get_mut(&Action::W).unwrap() += factor,
+                        VirtualKeyCode::L => *self.actions.get_mut(&Action::W).unwrap() -= factor,
+                        _ => ()
+                    }
                 }
             }
 
             Event::DeviceEvent { event, .. } => {
                 match event {
-                    winit::event::DeviceEvent::MouseMotion { delta } => {
+                    DeviceEvent::MouseMotion { delta } => {
                         *self.actions.get_mut(&Action::Yaw).unwrap() += delta.0 as f32;
                         *self.actions.get_mut(&Action::Pitch).unwrap() += delta.1 as f32;
                     }

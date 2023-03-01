@@ -9,6 +9,8 @@ use crate::cameras::{UniformBufferObject, Camera4 as Camera};
 
 use nalgebra as na;
 use winit::{
+    event,
+    event::{Event, WindowEvent},
     event_loop::EventLoop,
     window::{Window, WindowBuilder},
 };
@@ -1056,10 +1058,6 @@ impl App {
         self.egui_integration = Some(egui_integration);
     }
 
-    fn ui(&self, command_buffer: &vk::CommandBuffer, image_index: usize) {
-
-    }
-
     fn update_uniform_buffer(&mut self) {
         let camera = self.camera.as_mut().unwrap();
         let entity = &self.entities.as_ref().unwrap()[0];
@@ -1205,29 +1203,17 @@ impl App {
                 },
             ];
 
-            let descriptor_sets = self.descriptor_sets.as_ref()
-                .expect("Could not get `descriptor_sets`.");
-            let pipeline = self.pipeline.as_ref()
-                .expect("Could not get `pipeline`.");
-
+            let descriptor_sets = self.descriptor_sets.as_ref().unwrap();
+            let pipeline = self.pipeline.as_ref().unwrap();
             let graphics_pipeline = pipeline.pipeline();
             let render_pass = pipeline.render_pass();
             let pipeline_layout = pipeline.pipeline_layout();
-            
-            let framebuffers = self.framebuffers.as_ref()
-                .expect("Could not get `framebuffers`.");
-            let surface_resolution = self.surface_resolution.as_ref()
-                .expect("Could not get `surface_resolution`.");
-
-            let device = self.device.as_ref()
-                .expect("Could not get `device`.");
-
-            let vertex_buffers = self.vertex_buffers.as_ref()
-                .expect("Could not get `vertex_buffers`");
-            let index_buffers = self.index_buffers.as_ref()
-                .expect("Could not get `index_buffers`.");
-            let entities = self.entities.as_ref()
-                .expect("Could not get `entity`.");
+            let framebuffers = self.framebuffers.as_ref().unwrap();
+            let surface_resolution = self.surface_resolution.as_ref().unwrap();
+            let device = self.device.as_ref().unwrap();
+            let vertex_buffers = self.vertex_buffers.as_ref().unwrap();
+            let index_buffers = self.index_buffers.as_ref().unwrap();
+            let entities = self.entities.as_ref().unwrap();
             let index_count = entities[0].indices().len() as u32;
 
             let command_buffer = draw_command_buffers[image_index as usize];
@@ -1346,20 +1332,10 @@ impl App {
                 for v in self.entities.as_ref().unwrap()[0].vertices().iter() {
                     let ve = na::Vector5::new(v.pos[0], v.pos[1], v.pos[2], v.pos[3], 1.0);
                     let mut tmp = camera.transform() * ve;
-                    // let mut tmp = ortho * proj * view * ve;
-                    
-                    // let mut tmp = na::Matrix5::identity() * ve;
                     tmp = tmp / tmp[4];
 
                     ui.label(format!("{:?}", tmp));
                 }
-                // let text = egui::TextEdit
-                // ui.text_edit_singleline(text)
-                // ui.label("Hello egui!");
-                // ui.separator();
-                // ui.hyperlink("https://github.com/emilk/egui");
-                // ui.separator();
-                // ui.label("Rotation");
             });
             let output = egui_integration.end_frame(window);
 
@@ -1418,6 +1394,26 @@ impl App {
         }
 
         self.current_frame = Some((current_frame + 1) % max_frames_in_flight);
+    }
+    
+    pub fn handle_event<T>(&mut self, event: &winit::event::Event<T>) {
+        self.camera().handle_event(event);
+
+        if let Event::WindowEvent { event, .. } = event {
+            self.egui_integration_handle_event(&event);
+
+            if let WindowEvent::Resized(dims) = event {
+                self.update_surface_resolution(ash::vk::Extent2D {
+                    width: dims.width,
+                    height: dims.height,
+                });
+                self.recreate_swapchain();
+            }
+        }
+
+        if let Event::RedrawEventsCleared = event {
+            self.render();
+        }
     }
 
     pub fn camera(&mut self) -> &mut Camera {
